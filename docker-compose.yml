@@ -6,13 +6,27 @@ services:
       POSTGRES_PASSWORD: movie
       POSTGRES_DB: movie_booking
     ports:
-      - "5434:5432"   # 5434 on the host so it does not clash with a locally installed Postgres
+      - "5434:5432" # 5434 on the host so it does not clash with a locally installed Postgres
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U movie -d movie_booking"]
       interval: 5s
       retries: 10
+
+  # The full app (API + built frontend) on http://localhost:8080. Start with: docker compose up --build
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://movie:movie@db:5432/movie_booking
+      JWT_SECRET: ${JWT_SECRET:-local-docker-demo-secret-change-me-0123456789}
+      # Plain HTTP on localhost; set to true (the production default) behind HTTPS.
+      COOKIE_SECURE: "false"
+    ports:
+      - "8080:4000"
 
 volumes:
   pgdata:
