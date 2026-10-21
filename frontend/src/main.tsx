@@ -4,6 +4,8 @@ import { createRoot } from 'react-dom/client'
 import { ApiError } from './api/client'
 import { queries } from './api/queries'
 import App from './App'
+// Display font, bundled with the app so the page makes no third-party font request.
+import '@fontsource/michroma/latin-400.css'
 import './index.css'
 
 // If any request finds the session gone (expired cookie, logged out in another tab), mark the

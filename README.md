@@ -4,11 +4,11 @@ A movie ticket booking app for a single-screen cinema. Customers browse shows, p
 
 | Part     | Choice |
 |----------|--------|
-| Frontend | React 19 + TypeScript (Vite), React Router, TanStack Query, plain CSS |
+| Frontend | React 19 + TypeScript (Vite), React Router, TanStack Query, plain CSS, Lenis (smooth scroll) |
 | Backend  | Node.js + Express 5 + TypeScript, REST API, Zod validation |
 | Database | PostgreSQL 16, raw SQL via `pg`, SQL migrations |
 | Auth     | Email + password (bcrypt), JWT in an httpOnly cookie |
-| Tests    | Vitest + Supertest against a real Postgres (36 tests) |
+| Tests    | Vitest + Supertest against a real Postgres (38 tests) |
 
 ---
 
@@ -84,6 +84,8 @@ The second customer is for trying the "two people book the same seat" case in tw
 | 8 | Bonus: cancel a booking | ✅ Done |
 | 9 | Bonus: admin bookings per show | ✅ Done |
 | 10 | Bonus: live seat updates | ✅ Done (polling every 3 s) |
+| + | Extra: snacks delivered to your seat | ✅ Pre-order food & drinks at checkout, delivered at show start or interval |
+| + | Extra: e-ticket with QR code, show-time switcher, colour-coded availability, search & filters | ✅ |
 
 **Known limitations**
 - A user can extend a hold by pressing Continue again before it expires (each hold lasts 5 minutes from the last Continue). A real system would cap the total hold time.
@@ -109,6 +111,21 @@ The second customer is for trying the "two people book the same seat" case in tw
 8. **Live seat updates use polling (every 3 s), not WebSockets or SSE.** Hold expiry is time-based, so push would still need timers. Polling also survives server restarts and multiple instances without shared pub/sub. TanStack Query pauses polling in background tabs. For an 80-seat map it's a tiny request, and it's well within "a few seconds".
 9. **Frontend state.** Server state lives in TanStack Query (caching, polling, invalidation). The active hold is read from the server's seat map rather than stored on the client, so refreshing mid-checkout resumes the hold and countdown. The countdown corrects for clock skew using the server's time.
 
+## Design
+
+- **Look:** near-black with two neon accents, electric blue `#4DA3FF` and magenta `#FF2E93`. Blue means "available" and magenta means "yours / act". The display face is Michroma, bundled with the app (no third-party font request). Labels use tracked uppercase. There are no stock photos and no emoji UI icons. Poster placeholders are generated duotones in the brand colours.
+- **Glass panels** over a CSS-generated wallpaper (gradients plus an SVG grain, so no image download):
+  - Only top-level panels use `backdrop-filter`. Nested cards are flat translucent fills, because stacking blurs is expensive.
+  - Text sits on dark glass (≥ 0.66 opacity) to keep WCAG contrast.
+  - `prefers-reduced-transparency` and browsers without `backdrop-filter` get solid panels.
+- **Layout:**
+  - Movie pages follow the large booking sites: a hero card, a date strip, show times colour-coded by how full they are, and a 3-step checkout (seats → snacks → pay) with a sticky order summary.
+  - Seats are real buttons, and their state is shown by shape and pattern, not only colour.
+- **Smooth scrolling:** [Lenis](https://github.com/darkroomengineering/lenis) via its npm package.
+  - It smooths only wheel and trackpad input; touch, keyboard and find-in-page stay native.
+  - It glides to in-page anchors, resets to the top on navigation and pauses while a dialog is open.
+  - It's switched off for `prefers-reduced-motion`.
+
 ## Security notes
 
 - Passwords are hashed with bcrypt (cost 10). They must be 8–72 characters, because bcrypt ignores anything after 72 bytes.
@@ -130,6 +147,8 @@ erDiagram
   shows ||--|{ show_seats : "has 80"
   shows ||--o{ bookings : "for"
   bookings ||--|{ booking_seats : "covers"
+  bookings ||--o{ booking_snacks : "includes"
+  snacks ||--o{ booking_snacks : "ordered as"
   bookings |o--o{ show_seats : "currently owns"
   users |o--o{ show_seats : "holds"
 ```
@@ -142,6 +161,10 @@ erDiagram
 | **show_seats** | show_id → shows, seat_label (`A1`…`H10`), held_by → users, hold_expires_at, booking_id → bookings | PK (show_id, seat_label). The seat inventory, locked during hold/book |
 | **bookings** | id (uuid), user_id → users, show_id → shows, amount_paise, status (`confirmed`/`cancelled`), created_at, cancelled_at | `show_id` is `ON DELETE RESTRICT`: a booked show (or its movie) can't be deleted |
 | **booking_seats** | booking_id → bookings, seat_label | Permanent record of a booking's seats |
+| **snacks** | id, name (unique), description, category, price_paise, is_veg, icon, available | The food & beverage menu |
+| **booking_snacks** | booking_id → bookings, snack_id → snacks, quantity (1–10), unit_price_paise | Price is copied at order time, so menu changes never alter what was paid |
+
+`bookings` also has `snack_delivery` (`show_start` / `interval`, null without snacks), and `movies` has `genre`. The booking total is computed in the transaction from database prices; the client only sends snack IDs and quantities.
 
 Money is stored as integer **paise** (no floating-point rounding). Times are `timestamptz` (UTC). See [001_init.sql](backend/src/db/migrations/001_init.sql) for the CHECK constraints that keep seat state consistent.
 
@@ -154,7 +177,8 @@ Money is stored as integer **paise** (no floating-point rounding). Times are `ti
 | GET | `/api/movies`, `/api/movies/:id` (with upcoming shows), `/api/shows/:id` | - |
 | GET | `/api/shows/:id/seats` | user |
 | POST / DELETE | `/api/shows/:id/hold` | user |
-| GET / POST | `/api/bookings` (list / confirm after payment) | user |
+| GET | `/api/snacks` | - |
+| GET / POST | `/api/bookings` (list / confirm after payment, with optional snacks) | user |
 | GET | `/api/bookings/:id` | owner |
 | POST | `/api/bookings/:id/cancel` | owner |
 | POST / PUT / DELETE | `/api/admin/movies[/:id]` | admin |
@@ -172,7 +196,7 @@ Errors are always `{ "error": { "code", "message", "details?" } }`. Clients bran
   - 20 users race end to end for one seat
   - a double-clicked Pay creates one booking
 - **auth.test.ts**: hashing, duplicate email, generic login error, logout, protected APIs.
-- **bookings.test.ts**: holds, 6-seat limit, expiry, paying after expiry, privacy of bookings, ordering, cancellation window.
+- **bookings.test.ts**: holds, 6-seat limit, expiry, paying after expiry, snacks priced by the server (a client-sent price is ignored), unavailable snacks, privacy of bookings, ordering, cancellation window.
 - **admin.test.ts**: role checks, CRUD, overlap rules, delete rules, stats, time zone conversion.
 
 ## Assumptions

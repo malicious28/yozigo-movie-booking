@@ -1,3 +1,4 @@
+import { useLenis } from 'lenis/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { errorMessage } from '../api/client'
 import type { BookingStatus, Rating } from '../api/types'
@@ -88,15 +89,21 @@ export function Poster({ url, title, size = 'md' }: { url: string | null; title:
 // Accessible modal on the native <dialog> element: focus trapping, Esc and the backdrop come for free.
 export function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose?: () => void }) {
   const ref = useRef<HTMLDialogElement>(null)
+  const lenis = useLenis()
   useEffect(() => {
     const dialog = ref.current
     dialog?.showModal()
-    return () => dialog?.close()
-  }, [])
+    lenis?.stop() // keep the page behind the dialog still
+    return () => {
+      dialog?.close()
+      lenis?.start()
+    }
+  }, [lenis])
   return (
     <dialog
       ref={ref}
       className="modal"
+      data-lenis-prevent
       aria-labelledby="modal-title"
       onCancel={(e) => {
         e.preventDefault()

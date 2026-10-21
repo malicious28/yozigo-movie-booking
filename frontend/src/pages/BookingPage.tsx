@@ -4,6 +4,7 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { api, errorMessage } from '../api/client'
 import { queries } from '../api/queries'
 import type { Booking } from '../api/types'
+import { Icon } from '../components/Icon'
 import { Alert, ErrorState, Modal, PageLoader, Poster, StatusBadge } from '../components/ui'
 import { formatDateTime, formatLongDay, formatMoney, formatTime, shortId } from '../lib/format'
 
@@ -51,12 +52,12 @@ export function BookingPage() {
     <div className="container main">
       <div className="ticket-wrap">
         <Link to="/bookings" className="back-link">
-          ← My bookings
+          <Icon name="arrowLeft" size={14} /> My bookings
         </Link>
         {justBooked && booking.status === 'confirmed' && (
           <Alert kind="success">
             <span>
-              <strong>Booking confirmed!</strong> Show this QR code at the entrance. Enjoy the show 🎬
+              <strong>Booking confirmed!</strong> Show this QR code at the entrance.
             </span>
           </Alert>
         )}
@@ -110,7 +111,7 @@ export function BookingPage() {
 
         <div className="ticket-extra">
           <section className="card">
-            <h3 className="card-title">Payment summary</h3>
+            <p className="card-title">Payment summary</p>
             <ul className="item-lines">
               <li>
                 <span>Tickets ({booking.seats.length})</span>
@@ -131,22 +132,22 @@ export function BookingPage() {
             </ul>
           </section>
           <section className="card">
-            <h3 className="card-title">Good to know</h3>
+            <p className="card-title">Good to know</p>
             <ul className="info-list small">
               <li>
-                <span className="ico" aria-hidden>🕒</span>
+                <span className="ico"><Icon name="clock" size={18} /></span>
                 <span>Arrive 15 minutes early. Entry closes 10 minutes after the show starts.</span>
               </li>
               {booking.snacks.length > 0 && (
                 <li>
-                  <span className="ico" aria-hidden>🍿</span>
+                  <span className="ico"><Icon name="cup" size={18} /></span>
                   <span>
                     Your snacks will be brought to seat {booking.seats[0]} {booking.snackDelivery === 'interval' ? 'during the interval' : 'as the show starts'}.
                   </span>
                 </li>
               )}
               <li>
-                <span className="ico" aria-hidden>↩</span>
+                <span className="ico"><Icon name="undo" size={18} /></span>
                 <span>
                   {booking.status === 'cancelled'
                     ? `Cancelled on ${formatDateTime(booking.cancelledAt!)}.`

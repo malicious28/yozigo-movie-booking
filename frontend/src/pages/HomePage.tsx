@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { queries } from '../api/queries'
 import type { Movie, Rating } from '../api/types'
-import { EmptyState, ErrorState, PageLoader, Poster, RatingBadge } from '../components/ui'
-import { dateKey, formatDuration, formatTime, todayKey, formatDay } from '../lib/format'
+import { Icon } from '../components/Icon'
+import { EmptyState, ErrorState, PageLoader, Poster } from '../components/ui'
+import { dateKey, formatDay, formatDuration, formatTime, todayKey } from '../lib/format'
 import { heroGlow } from '../lib/hue'
 
 function nextShowText(iso: string | null | undefined) {
@@ -12,48 +13,88 @@ function nextShowText(iso: string | null | undefined) {
   return `${dateKey(iso) === todayKey() ? 'Today' : formatDay(iso)}, ${formatTime(iso)}`
 }
 
-// Rotating banner of the movies playing soonest.
-function Featured({ movies }: { movies: Movie[] }) {
-  const [index, setIndex] = useState(0)
-  const [paused, setPaused] = useState(false)
-  useEffect(() => {
-    if (paused || movies.length < 2) return
-    const id = setInterval(() => setIndex((i) => (i + 1) % movies.length), 7000)
-    return () => clearInterval(id)
-  }, [paused, movies.length])
+// "The Last Monsoon" -> ["The Last", "Monsoon"]: first line blue, second magenta.
+function splitTitle(title: string): [string, string] {
+  const words = title.split(' ')
+  if (words.length === 1) return ['', title]
+  const cut = Math.ceil(words.length / 2)
+  return [words.slice(0, cut).join(' '), words.slice(cut).join(' ')]
+}
 
-  const movie = movies[index % movies.length]
+const pad = (n: number) => String(n).padStart(2, '0')
+
+function Hero({ movies }: { movies: Movie[] }) {
+  const [index, setIndex] = useState(0)
+  const movie = movies[index]
+  const [first, second] = splitTitle(movie.title)
+  const go = (step: number) => setIndex((i) => (i + step + movies.length) % movies.length)
+
   return (
-    <section className="band" aria-label="Featured" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+    <section className="hero" aria-roledescription="carousel" aria-label="Featured movies">
       <div className="band-glow" style={heroGlow(movie.title)} />
-      <div className="container featured">
-        <div>
-          <span className="featured-kicker">Now showing</span>
-          <h1>{movie.title}</h1>
-          <p className="meta">
-            <RatingBadge rating={movie.rating} />
-            <span>{movie.genre}</span>
-            <span className="dot">{movie.language}</span>
-            <span className="dot">{formatDuration(movie.durationMin)}</span>
-          </p>
-          <p className="lead">{movie.description}</p>
-          <div className="row">
-            <Link to={`/movies/${movie.id}`} className="btn btn-primary btn-lg">
-              Book tickets
-            </Link>
-            {movie.nextShowAt && <span className="muted small">&nbsp; Next show: {nextShowText(movie.nextShowAt)}</span>}
-          </div>
-          {movies.length > 1 && (
-            <div className="featured-dots" role="group" aria-label="Choose featured movie">
-              {movies.map((m, i) => (
-                <button key={m.id} aria-label={m.title} aria-current={i === index % movies.length} onClick={() => setIndex(i)} />
-              ))}
-            </div>
-          )}
+      {movies.length > 1 && (
+        <div className="hero-pager">
+          <button onClick={() => go(-1)} aria-label="Previous movie">
+            <Icon name="arrowLeft" size={16} />
+          </button>
+          <span aria-live="polite">
+            {pad(index + 1)} / {pad(movies.length)}
+          </span>
+          <button onClick={() => go(1)} aria-label="Next movie">
+            <Icon name="arrow" size={16} />
+          </button>
         </div>
-        <Poster url={movie.posterUrl} title={movie.title} size="lg" />
+      )}
+      <div>
+        <span className="kicker">Now showing at Yozigo</span>
+        <h1 className="hero-title">
+          {first && <span className="line">{first}</span>}
+          <span className="line">{second}</span>
+        </h1>
+        <p className="hero-sub">
+          {movie.genre || movie.language} · {movie.language} · {formatDuration(movie.durationMin)}
+          <br />
+          {movie.nextShowAt ? (
+            <>
+              Next show <em>{nextShowText(movie.nextShowAt)}</em>
+            </>
+          ) : (
+            'No upcoming shows'
+          )}
+        </p>
+        <p className="lead">{movie.description}</p>
+        <Link to={`/movies/${movie.id}`} className="cta">
+          <span className="cta-circle">
+            <Icon name="arrow" />
+          </span>
+          Book tickets
+        </Link>
       </div>
+      <Poster url={movie.posterUrl} title={movie.title} size="lg" />
     </section>
+  )
+}
+
+function UpNext({ movies }: { movies: Movie[] }) {
+  return (
+    <aside className="card upnext" aria-label="Up next">
+      <p className="card-title">
+        <span>Up next</span>
+        <span className="t-pink">Screen 1</span>
+      </p>
+      {movies.map((m) => (
+        <Link key={m.id} to={`/movies/${m.id}`} className="upnext-item">
+          <Poster url={m.posterUrl} title={m.title} size="xs" />
+          <span>
+            <strong>{m.title}</strong>
+            <span className="upnext-time">{nextShowText(m.nextShowAt)}</span>
+          </span>
+          <span className="upnext-go">
+            <Icon name="arrow" size={18} />
+          </span>
+        </Link>
+      ))}
+    </aside>
   )
 }
 
@@ -81,16 +122,22 @@ export function HomePage() {
   if (isPending) return <PageLoader />
   if (error) return <div className="container main"><ErrorState error={error} onRetry={refetch} /></div>
 
-  const featured = movies.filter((m) => m.nextShowAt).slice(0, 4)
+  // The API lists movies with the soonest show first.
+  const playing = movies.filter((m) => m.nextShowAt)
 
   return (
-    <>
-      {featured.length > 0 && !q && <Featured movies={featured} />}
+    <div className="container main">
+      {playing.length > 0 && !q && (
+        <div className="home-top" style={{ marginTop: 0 }}>
+          <Hero movies={playing.slice(0, 4)} />
+          <UpNext movies={playing.slice(0, 6)} />
+        </div>
+      )}
 
-      <div className="container main">
+      <section className={playing.length > 0 && !q ? 'section' : undefined}>
         <div className="section-head">
           <div>
-            <h2>{q ? `Results for “${params.get('q')}”` : 'Movies in cinemas'}</h2>
+            <h2>{q ? `Results for “${params.get('q')}”` : 'In cinemas'}</h2>
             <p className="muted small">
               {visible.length} {visible.length === 1 ? 'movie' : 'movies'}
               {q && (
@@ -103,25 +150,24 @@ export function HomePage() {
               )}
             </p>
           </div>
-        </div>
-
-        <div className="filters">
-          <div className="chips" role="group" aria-label="Language">
-            <button className="chip" aria-pressed={language === null} onClick={() => setLanguage(null)}>
-              All languages
-            </button>
-            {languages.map((l) => (
-              <button key={l} className="chip" aria-pressed={language === l} onClick={() => setLanguage(language === l ? null : l)}>
-                {l}
+          <div className="filters" style={{ margin: 0 }}>
+            <div className="chips" role="group" aria-label="Language">
+              <button className="chip" aria-pressed={language === null} onClick={() => setLanguage(null)}>
+                All
               </button>
-            ))}
-          </div>
-          <div className="chips" role="group" aria-label="Certificate">
-            {RATINGS.map((r) => (
-              <button key={r} className="chip" aria-pressed={rating === r} onClick={() => setRating(rating === r ? null : r)}>
-                {r}
-              </button>
-            ))}
+              {languages.map((l) => (
+                <button key={l} className="chip" aria-pressed={language === l} onClick={() => setLanguage(language === l ? null : l)}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <div className="chips" role="group" aria-label="Certificate">
+              {RATINGS.map((r) => (
+                <button key={r} className="chip" aria-pressed={rating === r} onClick={() => setRating(rating === r ? null : r)}>
+                  {r}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -129,54 +175,49 @@ export function HomePage() {
           <EmptyState title="No movies match">Try another language, certificate or search.</EmptyState>
         ) : (
           <ul className="movie-grid">
-            {visible.map((m) => (
+            {visible.map((m, i) => (
               <li key={m.id}>
                 <Link to={`/movies/${m.id}`} className="movie-card">
                   <div className="movie-card-poster">
                     <Poster url={m.posterUrl} title={m.title} />
                     <span className="badge badge-dark">{m.rating}</span>
+                    <span className="movie-card-index" aria-hidden>
+                      {pad(i + 1)}
+                    </span>
                   </div>
                   <div>
                     <h3 className="movie-card-title">{m.title}</h3>
-                    <p className="movie-card-genre">{m.genre || m.language}</p>
-                    <p className="meta xsmall">
-                      <span>{m.language}</span>
-                      <span className="dot">{formatDuration(m.durationMin)}</span>
+                    <p className="movie-card-genre">
+                      {m.language} · {formatDuration(m.durationMin)}
                     </p>
                   </div>
                   <p className={`next-show${m.nextShowAt ? '' : ' none'}`}>
-                    {m.nextShowAt ? `Next: ${nextShowText(m.nextShowAt)}` : 'No upcoming shows'}
+                    {m.nextShowAt ? nextShowText(m.nextShowAt) : 'No shows yet'}
                   </p>
                 </Link>
               </li>
             ))}
           </ul>
         )}
+      </section>
 
-        <section className="section card features" aria-label="Why book with us">
-          <div className="feature">
-            <span className="feature-icon" aria-hidden>🍿</span>
-            <div>
-              <h3>Snacks to your seat</h3>
-              <p className="muted small">Pre-order popcorn and drinks while booking. We bring them at the start or at the interval.</p>
-            </div>
-          </div>
-          <div className="feature">
-            <span className="feature-icon" aria-hidden>⚡</span>
-            <div>
-              <h3>Live seat map</h3>
-              <p className="muted small">See seats being taken in real time. Your seats are held for 5 minutes while you pay.</p>
-            </div>
-          </div>
-          <div className="feature">
-            <span className="feature-icon" aria-hidden>↩</span>
-            <div>
-              <h3>Free cancellation</h3>
-              <p className="muted small">Plans changed? Cancel up to 2 hours before the show and the seats go back on sale.</p>
-            </div>
-          </div>
-        </section>
-      </div>
-    </>
+      <section className="section features" aria-label="Why book with us">
+        <div className="feature">
+          <span className="feature-no">01</span>
+          <h3>Snacks to your seat</h3>
+          <p className="muted small">Order popcorn and drinks with your tickets. We bring them when the show starts or at the interval.</p>
+        </div>
+        <div className="feature">
+          <span className="feature-no">02</span>
+          <h3>A seat map that's always current</h3>
+          <p className="muted small">You see seats being taken as it happens, and yours are held for 5 minutes while you pay.</p>
+        </div>
+        <div className="feature">
+          <span className="feature-no">03</span>
+          <h3>Free cancellation</h3>
+          <p className="muted small">Plans changed? Cancel up to 2 hours before the show and the seats go straight back on sale.</p>
+        </div>
+      </section>
+    </div>
   )
 }

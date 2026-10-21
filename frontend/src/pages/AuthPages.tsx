@@ -12,11 +12,12 @@ function AuthShell({ children }: { children: ReactNode }) {
       <div className="auth-wrap">
         <aside className="auth-aside">
           <div className="band-glow" style={heroGlow('Yozigo Cinema')} />
-          <span style={{ fontSize: '2.4rem', position: 'relative' }} aria-hidden>
-            🎬
-          </span>
-          <h2 style={{ position: 'relative' }}>Your seat is waiting.</h2>
-          <p style={{ position: 'relative' }}>
+          <span className="kicker">Yozigo Cinema · Screen 1</span>
+          <h2 className="hero-title" style={{ fontSize: '2.4rem', margin: 0 }}>
+            <span className="line">Your seat</span>
+            <span className="line">is waiting</span>
+          </h2>
+          <p>
             Pick the perfect seat on a live map, add popcorn delivered right to it, and get your e-ticket in seconds.
           </p>
         </aside>

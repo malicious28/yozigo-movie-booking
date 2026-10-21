@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { queries } from '../api/queries'
 import type { Show } from '../api/types'
+import { Icon } from '../components/Icon'
 import { EmptyState, ErrorState, PageLoader, Poster, RatingBadge } from '../components/ui'
 import { dateKey, formatDuration, formatMoney, formatTime, todayKey } from '../lib/format'
 import { heroGlow } from '../lib/hue'
@@ -48,22 +49,23 @@ export function MoviePage() {
         <div className="container movie-hero">
           <Poster url={movie.posterUrl} title={movie.title} size="lg" />
           <div>
-            <Link to="/" className="back-link" style={{ color: 'var(--on-ink-muted)' }}>
-              ← All movies
+            <Link to="/" className="back-link">
+              <Icon name="arrowLeft" size={14} /> All movies
             </Link>
             <h1>{movie.title}</h1>
             <div className="info-pills">
-              <span className="info-pill">
-                <RatingBadge rating={movie.rating} /> Certificate
-              </span>
+              <RatingBadge rating={movie.rating} />
               <span className="info-pill">{movie.language}</span>
               <span className="info-pill">{formatDuration(movie.durationMin)}</span>
               {movie.genre && <span className="info-pill">{movie.genre}</span>}
             </div>
             {movie.description && <p className="lead">{movie.description}</p>}
             {shows.length > 0 && (
-              <a href="#showtimes" className="btn btn-primary btn-lg">
-                Book tickets
+              <a href="#showtimes" className="cta">
+                <span className="cta-circle">
+                  <Icon name="arrow" />
+                </span>
+                Choose a show time
               </a>
             )}
           </div>
@@ -122,10 +124,10 @@ export function MoviePage() {
           </section>
 
           <aside className="card" aria-label="Before you book">
-            <h3 className="card-title">Before you book</h3>
+            <p className="card-title">Before you book</p>
             <ul className="info-list">
               <li>
-                <span className="ico" aria-hidden>🎟</span>
+                <span className="ico"><Icon name="tag" size={18} /></span>
                 <span>
                   <strong>{prices.length ? `${formatMoney(Math.min(...prices))} – ${formatMoney(Math.max(...prices))}` : 'No shows yet'}</strong>
                   <br />
@@ -133,7 +135,7 @@ export function MoviePage() {
                 </span>
               </li>
               <li>
-                <span className="ico" aria-hidden>🍿</span>
+                <span className="ico"><Icon name="cup" size={18} /></span>
                 <span>
                   <strong>Snacks to your seat</strong>
                   <br />
@@ -141,7 +143,7 @@ export function MoviePage() {
                 </span>
               </li>
               <li>
-                <span className="ico" aria-hidden>⏱</span>
+                <span className="ico"><Icon name="clock" size={18} /></span>
                 <span>
                   <strong>5-minute seat hold</strong>
                   <br />
@@ -149,7 +151,7 @@ export function MoviePage() {
                 </span>
               </li>
               <li>
-                <span className="ico" aria-hidden>↩</span>
+                <span className="ico"><Icon name="undo" size={18} /></span>
                 <span>
                   <strong>Free cancellation</strong>
                   <br />

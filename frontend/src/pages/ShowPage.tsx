@@ -7,6 +7,7 @@ import type { Booking, Hold, SeatState, Show, SnackDelivery } from '../api/types
 import { Countdown } from '../components/Countdown'
 import { SeatMap } from '../components/SeatMap'
 import { SnackMenu, type Cart } from '../components/SnackMenu'
+import { Icon } from '../components/Icon'
 import { Alert, ErrorState, Modal, PageLoader, Poster } from '../components/ui'
 import { useRemainingMs } from '../hooks/useRemainingMs'
 import { dateKey, formatLongDay, formatMoney, formatTime } from '../lib/format'
@@ -165,8 +166,8 @@ export function ShowPage() {
         <div className="band-glow" style={heroGlow(show.movieTitle)} />
         <div className="container checkout-head-inner">
           <div>
-            <Link to={`/movies/${show.movieId}`} className="small" style={{ color: 'var(--on-ink-muted)' }}>
-              ← Back to show times
+            <Link to={`/movies/${show.movieId}`} className="back-link" style={{ marginBottom: 0 }}>
+              <Icon name="arrowLeft" size={14} /> Show times
             </Link>
             <h1>{show.movieTitle}</h1>
             <p className="meta">
@@ -311,7 +312,7 @@ export function ShowPage() {
                     Pay {formatMoney(total)}
                   </button>
                   <button className="btn btn-ghost btn-block" disabled={releaseMutation.isPending} onClick={() => releaseMutation.mutate()}>
-                    ← Change seats
+                    Change seats
                   </button>
                 </>
               )}
@@ -324,7 +325,9 @@ export function ShowPage() {
         <Modal title={payment === 'failed' ? 'Payment failed' : 'Complete payment'} onClose={() => !bookMutation.isPending && setPayment('closed')}>
           {payment === 'choose' ? (
             <div className="gateway">
-              <span className="gateway-brand">🔒 Demo payment gateway</span>
+              <span className="gateway-brand">
+                <Icon name="lock" size={14} /> Demo payment gateway
+              </span>
               <p className="muted small">This is a simulated gateway. No money is charged. Choose the outcome to test.</p>
               <p className="pay-amount">{formatMoney(total)}</p>
               <p className="small muted center">
