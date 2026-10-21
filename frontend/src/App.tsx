@@ -1,122 +1,41 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { lazy } from 'react'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { RequireAdmin, RequireAuth } from './auth/guards'
+import { Layout } from './components/Layout'
+import { EmptyState } from './components/ui'
+import { BookingPage } from './pages/BookingPage'
+import { HomePage } from './pages/HomePage'
+import { LoginPage, SignupPage } from './pages/AuthPages'
+import { MoviePage } from './pages/MoviePage'
+import { MyBookingsPage } from './pages/MyBookingsPage'
+import { ShowPage } from './pages/ShowPage'
 
-function App() {
-  const [count, setCount] = useState(0)
+// Admin pages are split into their own chunk: customers never download them.
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'))
+const AdminShowsPage = lazy(() => import('./pages/admin/AdminShowsPage'))
+const AdminMoviesPage = lazy(() => import('./pages/admin/AdminMoviesPage'))
+const AdminShowPage = lazy(() => import('./pages/admin/AdminShowPage'))
 
+export default function App() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route index element={<HomePage />} />
+          <Route path="movies/:id" element={<MoviePage />} />
+          <Route path="login" element={<LoginPage />} />
+          <Route path="signup" element={<SignupPage />} />
+          <Route path="shows/:id" element={<RequireAuth><ShowPage /></RequireAuth>} />
+          <Route path="bookings" element={<RequireAuth><MyBookingsPage /></RequireAuth>} />
+          <Route path="bookings/:id" element={<RequireAuth><BookingPage /></RequireAuth>} />
+          <Route path="admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
+            <Route index element={<AdminShowsPage />} />
+            <Route path="movies" element={<AdminMoviesPage />} />
+            <Route path="shows/:id" element={<AdminShowPage />} />
+          </Route>
+          <Route path="*" element={<EmptyState title="Page not found" />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   )
 }
-
-export default App

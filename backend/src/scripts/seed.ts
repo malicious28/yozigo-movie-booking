@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { pool } from '../db/pool.js';
 import { createMovie, createShow, type MovieInput } from '../modules/admin/admin.service.js';
 import { config } from '../config.js';
+import { HttpError } from '../lib/errors.js';
 
 // Creates the demo admin and customer. The admin role can only be created here,
 // never via the public sign-up endpoint. Safe to run more than once.
@@ -15,7 +16,7 @@ const movies: (MovieInput & { times: string[] })[] = [
   {
     title: 'The Last Monsoon',
     description: 'A fisherman and his daughter race to get home before the storm of the century hits the coast.',
-    posterUrl: 'https://picsum.photos/seed/monsoon/300/450',
+    posterUrl: null,
     language: 'Hindi',
     durationMin: 135,
     rating: 'UA',
@@ -24,7 +25,7 @@ const movies: (MovieInput & { times: string[] })[] = [
   {
     title: 'Orbit of Silence',
     description: 'Two astronauts lose contact with Earth and have to decide who they trust.',
-    posterUrl: 'https://picsum.photos/seed/orbit/300/450',
+    posterUrl: null,
     language: 'English',
     durationMin: 118,
     rating: 'U',
@@ -58,20 +59,23 @@ async function seed() {
     console.log(`seeded ${u.role} ${u.email}`);
   }
 
-  const { rows } = await pool.query('SELECT 1 FROM movies LIMIT 1');
-  if (rows.length > 0) {
-    console.log('movies already exist, skipping demo movies and shows');
-    return;
-  }
-  // Shows for the next 3 days, created through the same code path the admin API uses.
+  // Demo movies, plus shows for the next 3 days. Re-running tops up shows for the coming days,
+  // so the demo always has something bookable; slots that already exist are skipped.
   for (const { times, ...movie } of movies) {
-    const created = await createMovie(movie);
+    const existing = await pool.query<{ id: number }>('SELECT id FROM movies WHERE title = $1', [movie.title]);
+    const movieId = existing.rows[0]?.id ?? (await createMovie(movie)).id;
+    let added = 0;
     for (let day = 1; day <= 3; day++) {
       for (const startTime of times) {
-        await createShow({ movieId: created.id, date: localDate(day), startTime, pricePaise: 25000 });
+        try {
+          await createShow({ movieId, date: localDate(day), startTime, pricePaise: 25000 });
+          added++;
+        } catch (err) {
+          if (!(err instanceof HttpError && err.code === 'SHOW_OVERLAP')) throw err;
+        }
       }
     }
-    console.log(`seeded movie "${movie.title}"`);
+    console.log(`movie "${movie.title}": ${added} new shows`);
   }
 }
 
