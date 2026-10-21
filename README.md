@@ -10,6 +10,8 @@ A movie ticket booking app for a single-screen cinema. Customers browse shows, p
 | Auth     | Email + password (bcrypt), JWT in an httpOnly cookie |
 | Tests    | Vitest + Supertest against a real Postgres (38 tests) |
 
+Live link: https://yozigo-movie-booking.onrender.com/ (free hosting on Render with a Neon Postgres database; the first visit after a quiet period can take up to a minute)
+
 Screen recording: https://www.loom.com/share/71e296c7996e49d886e282557c381f77
 
 A one-file summary of everything below (setup, accounts, flows, decisions, database design) is in [docs/Yozigo-Submission-Ashika-Mishra.pdf](docs/Yozigo-Submission-Ashika-Mishra.pdf).
@@ -94,7 +96,6 @@ The second customer is for trying the "two people book the same seat" case in tw
 **Known limitations**
 - A user can extend a hold by pressing Continue again before it expires (each hold lasts 5 minutes from the last Continue). A real system would cap the total hold time.
 - No rate limiting on login. It would be the first thing I'd add before going live.
-- No live deployment yet.
 
 ---
 
