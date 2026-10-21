@@ -199,6 +199,10 @@ Errors are always `{ "error": { "code", "message", "details?" } }`. Clients bran
 - **bookings.test.ts**: holds, 6-seat limit, expiry, paying after expiry, snacks priced by the server (a client-sent price is ignored), unavailable snacks, privacy of bookings, ordering, cancellation window.
 - **admin.test.ts**: role checks, CRUD, overlap rules, delete rules, stats, time zone conversion.
 
+## Credits
+
+Demo films are real releases; their posters are hotlinked from each film's English Wikipedia article (the infobox image). They remain the copyright of their studios and are used for demonstration only. Runtimes come from the same articles. TMDB was the first choice, but its site is not reachable from the network this was built on, so Wikipedia was used as the poster source. If a poster can't load, the app falls back to a generated title card.
+
 ## Assumptions
 
 - The cinema is in India: times are entered and shown in **IST** (`CINEMA_TIMEZONE`), whatever the viewer's computer is set to.

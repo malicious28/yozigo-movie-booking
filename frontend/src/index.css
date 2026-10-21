@@ -232,14 +232,13 @@ img { max-width: 100%; }
 .upnext-item:hover .upnext-go { color: var(--pink); }
 
 .filters { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s5); }
-.movie-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s6) var(--s5); }
+.movie-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: var(--s6) var(--s4); }
 .movie-card { display: grid; gap: 12px; color: inherit; }
 .movie-card:hover { text-decoration: none; }
 .movie-card-poster { position: relative; border-radius: var(--r); overflow: hidden; outline: 1px solid var(--stroke); outline-offset: -1px; transition: transform 0.25s, outline-color 0.25s; }
 .movie-card-poster .poster { border-radius: 0; }
 .movie-card-poster .badge { position: absolute; top: 10px; left: 10px; }
 .movie-card:hover .movie-card-poster { transform: translateY(-4px); outline-color: var(--pink); }
-.movie-card-index { position: absolute; top: 12px; right: 12px; font: 400 0.66rem var(--display); color: rgb(255 255 255 / 0.7); }
 .movie-card-title { font-size: 0.95rem; font-weight: 700; line-height: 1.25; }
 .movie-card-genre { color: var(--muted); font-size: 0.82rem; }
 .next-show { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--blue); }
@@ -475,7 +474,6 @@ img { max-width: 100%; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1180px) {
-  .movie-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .home-top { grid-template-columns: 1fr; }
   }
 @media (max-width: 900px) {
@@ -483,7 +481,6 @@ img { max-width: 100%; }
   .shell { padding-left: 0; padding-bottom: 90px; }
   .rail { top: auto; bottom: 12px; left: 50%; transform: translateX(-50%); width: auto; flex-direction: row; padding: 6px 10px; }
   .rail-link .tip, .rail-sep, .rail-link.active::before { display: none; }
-  .movie-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .checkout-layout, .showtimes-layout, .admin-show-layout, .movie-hero, .hero, .ticket, .ticket-main, .auth-wrap, .ticket-extra, .features { grid-template-columns: 1fr; }
   .hero > .poster, .auth-aside { display: none; }
   .feature + .feature { padding-left: 0; border-left: none; border-top: 1px solid var(--stroke); }
@@ -497,7 +494,6 @@ img { max-width: 100%; }
 }
 @media (max-width: 560px) {
   .container { padding: 0 var(--s4); }
-  .movie-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .seat { width: 26px; height: 26px; font-size: 0.58rem; }
   .seat-aisle { margin-right: 12px; }
 }

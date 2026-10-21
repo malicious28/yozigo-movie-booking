@@ -175,15 +175,12 @@ export function HomePage() {
           <EmptyState title="No movies match">Try another language, certificate or search.</EmptyState>
         ) : (
           <ul className="movie-grid">
-            {visible.map((m, i) => (
+            {visible.map((m) => (
               <li key={m.id}>
                 <Link to={`/movies/${m.id}`} className="movie-card">
                   <div className="movie-card-poster">
                     <Poster url={m.posterUrl} title={m.title} />
                     <span className="badge badge-dark">{m.rating}</span>
-                    <span className="movie-card-index" aria-hidden>
-                      {pad(i + 1)}
-                    </span>
                   </div>
                   <div>
                     <h3 className="movie-card-title">{m.title}</h3>

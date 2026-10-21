@@ -14,28 +14,39 @@ const users = [
   { name: 'Second Customer', email: 'customer2@cinema.test', password: 'customer123', role: 'customer' },
 ];
 
+// Real films, with official posters hotlinked from Wikipedia (the infobox image of each film's
+// article). Posters are the studios' copyright and are used here for demo purposes only.
+// Runtimes are from each article's infobox; certificates are the CBFC ones.
+const WIKI = 'https://upload.wikimedia.org/wikipedia/en';
 const movies: MovieInput[] = [
-  { title: 'The Last Monsoon', genre: 'Drama, Adventure', language: 'Hindi', durationMin: 135, rating: 'UA', posterUrl: null,
-    description: 'A fisherman and his daughter race to get home before the storm of the century hits the Konkan coast.' },
-  { title: 'Orbit of Silence', genre: 'Sci-Fi, Thriller', language: 'English', durationMin: 118, rating: 'U', posterUrl: null,
-    description: 'Two astronauts lose contact with Earth and have to decide who they can trust.' },
-  { title: 'Midnight in Madurai', genre: 'Crime, Mystery', language: 'Tamil', durationMin: 150, rating: 'A', posterUrl: null,
-    description: 'A detective has one night to solve a murder during the biggest temple festival of the year.' },
-  { title: 'Paper Kites', genre: 'Family, Comedy', language: 'Hindi', durationMin: 128, rating: 'U', posterUrl: null,
-    description: "Three siblings enter a kite-flying contest to save their grandfather's rooftop." },
-  { title: 'Iron Monarch', genre: 'Action, Fantasy', language: 'Telugu', durationMin: 142, rating: 'UA', posterUrl: null,
-    description: 'An exiled prince returns to reclaim a kingdom ruled by a machine.' },
-  { title: 'Small Hours', genre: 'Romance, Drama', language: 'Malayalam', durationMin: 112, rating: 'UA', posterUrl: null,
-    description: 'Two night-shift workers in Kochi keep meeting at the same tea stall at 3 am.' },
+  { title: 'Dune: Part Two', genre: 'Sci-Fi, Adventure', language: 'English', durationMin: 165, rating: 'UA',
+    posterUrl: `${WIKI}/5/52/Dune_Part_Two_poster.jpeg`,
+    description: 'Paul Atreides unites with Chani and the Fremen on a path of revenge against the conspirators who destroyed his family.' },
+  { title: 'Deadpool & Wolverine', genre: 'Action, Comedy', language: 'English', durationMin: 128, rating: 'A',
+    posterUrl: `${WIKI}/4/4c/Deadpool_%26_Wolverine_poster.jpg`,
+    description: 'A retired Wade Wilson is pulled back into action and has to team up with a very reluctant Wolverine to save his universe.' },
+  { title: '12th Fail', genre: 'Drama, Biography', language: 'Hindi', durationMin: 146, rating: 'U',
+    posterUrl: `${WIKI}/f/f2/12th_Fail_poster.jpeg`,
+    description: 'The true story of Manoj Kumar Sharma, who goes from a village in Chambal to cracking the UPSC exam against all odds.' },
+  { title: 'Manjummel Boys', genre: 'Survival, Thriller', language: 'Malayalam', durationMin: 135, rating: 'UA',
+    posterUrl: `${WIKI}/9/99/Manjummel_Boys_poster.jpg`,
+    description: 'Friends from Kochi on a trip to Kodaikanal must rescue one of their own after he falls into the Guna Caves.' },
+  { title: 'Maharaja', genre: 'Action, Thriller', language: 'Tamil', durationMin: 140, rating: 'UA',
+    posterUrl: `${WIKI}/8/82/Maharaja_2024_film_poster.jpg`,
+    description: 'A barber in Chennai reports a stolen dustbin to the police, setting off a story of mystery and revenge.' },
+  { title: 'Hanu-Man', genre: 'Superhero, Fantasy', language: 'Telugu', durationMin: 158, rating: 'UA',
+    posterUrl: `${WIKI}/b/bb/Hanu_Man_film_Release_poster.jpeg`,
+    description: 'In the village of Anjanadri, a small-time thief gains the powers of Hanuman and has to protect his people.' },
 ];
 
-// One screen, five slots a day. Every movie is at most 150 minutes, so the slots never overlap.
+// One screen, five slots a day, 3h15 apart: every movie is at most 165 minutes, so the slots
+// never overlap (the database's exclusion constraint would reject them if they did).
 const slots = [
-  { time: '09:30', pricePaise: 18000 },
+  { time: '09:00', pricePaise: 18000 },
   { time: '12:15', pricePaise: 22000 },
-  { time: '15:00', pricePaise: 25000 },
-  { time: '18:00', pricePaise: 28000 },
-  { time: '21:00', pricePaise: 28000 },
+  { time: '15:30', pricePaise: 25000 },
+  { time: '18:45', pricePaise: 28000 },
+  { time: '22:00', pricePaise: 25000 },
 ];
 const DAYS = 5;
 
