@@ -10,6 +10,8 @@ A movie ticket booking app for a single-screen cinema. Customers browse shows, p
 | Auth     | Email + password (bcrypt), JWT in an httpOnly cookie |
 | Tests    | Vitest + Supertest against a real Postgres (38 tests) |
 
+Screen recording: https://www.loom.com/share/71e296c7996e49d886e282557c381f77
+
 A one-file summary of everything below (setup, accounts, flows, decisions, database design) is in [docs/Yozigo-Submission-Ashika-Mishra.pdf](docs/Yozigo-Submission-Ashika-Mishra.pdf).
 
 ---
