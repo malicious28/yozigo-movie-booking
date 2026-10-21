@@ -5,7 +5,7 @@ import { insertMovie, insertShow, loginAs, resetDb } from './helpers.js';
 beforeEach(resetDb);
 afterAll(() => pool.end());
 
-const movie = { title: 'Dune', description: '', posterUrl: '', language: 'English', durationMin: 120, rating: 'UA' };
+const movie = { title: 'Dune', description: '', genre: 'Sci-Fi', posterUrl: '', language: 'English', durationMin: 120, rating: 'UA' };
 
 // Tomorrow's date in the cinema's time zone (Asia/Kolkata), as the admin form would send it.
 const tomorrow = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(Date.now() + 86_400_000));

@@ -1,6 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api, ApiError } from './client'
-import type { AdminBooking, AdminShow, Booking, Movie, SeatMapResponse, Show, User } from './types'
+import type { AdminBooking, AdminShow, Booking, Movie, SeatMapResponse, Show, Snack, User } from './types'
 
 // All query keys and fetchers live here, so pages share cache entries and invalidation
 // (e.g. after booking, invalidating ['bookings'] refreshes "My bookings" wherever it is shown).
@@ -35,6 +35,8 @@ export const queries = {
       queryFn: () => api.get<SeatMapResponse>(`/shows/${id}/seats`),
       refetchInterval: SEAT_POLL_MS,
     }),
+  snacks: () =>
+    queryOptions({ queryKey: ['snacks'], queryFn: () => api.get<{ snacks: Snack[] }>('/snacks').then((r) => r.snacks), staleTime: 5 * 60_000 }),
   bookings: () => queryOptions({ queryKey: ['bookings'], queryFn: () => api.get<{ bookings: Booking[] }>('/bookings').then((r) => r.bookings) }),
   booking: (id: string) =>
     queryOptions({ queryKey: ['bookings', id], queryFn: () => api.get<{ booking: Booking }>(`/bookings/${id}`).then((r) => r.booking) }),

@@ -5,7 +5,7 @@ import { api, errorMessage } from '../../api/client'
 import { queries } from '../../api/queries'
 import type { AdminShow } from '../../api/types'
 import { Alert, EmptyState, ErrorState, PageLoader } from '../../components/ui'
-import { formatDateTime, formatMoney, todayKey } from '../../lib/format'
+import { dateKey, formatDateTime, formatMoney, todayKey } from '../../lib/format'
 
 function AddShowForm() {
   const qc = useQueryClient()
@@ -150,11 +150,44 @@ function ShowTable({ title, shows }: { title: string; shows: AdminShow[] }) {
   )
 }
 
+function Kpis({ shows }: { shows: AdminShow[] }) {
+  const upcoming = shows.filter((s) => !s.started)
+  const sold = upcoming.reduce((n, s) => n + s.bookedSeats, 0)
+  const capacity = upcoming.reduce((n, s) => n + s.totalSeats, 0)
+  const revenue = shows.reduce((n, s) => n + s.revenuePaise, 0)
+  const today = upcoming.filter((s) => dateKey(s.startsAt) === todayKey()).length
+  return (
+    <div className="kpis">
+      <div className="card kpi">
+        <span className="label">Upcoming shows</span>
+        <strong>{upcoming.length}</strong>
+        <span className="sub">{today} still to play today</span>
+      </div>
+      <div className="card kpi">
+        <span className="label">Seats sold (upcoming)</span>
+        <strong>{sold}</strong>
+        <span className="sub">of {capacity} seats</span>
+      </div>
+      <div className="card kpi">
+        <span className="label">Average occupancy</span>
+        <strong>{capacity ? Math.round((sold / capacity) * 100) : 0}%</strong>
+        <span className="sub">across upcoming shows</span>
+      </div>
+      <div className="card kpi">
+        <span className="label">Collected (all time)</span>
+        <strong>{formatMoney(revenue)}</strong>
+        <span className="sub">tickets + snacks</span>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminShowsPage() {
   const { data: shows, isPending, error, refetch } = useQuery(queries.adminShows())
 
   return (
     <>
+      {shows && <Kpis shows={shows} />}
       <AddShowForm />
       {isPending ? (
         <PageLoader />

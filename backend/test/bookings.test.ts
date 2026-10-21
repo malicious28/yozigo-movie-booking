@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { pool } from '../src/db/pool.js';
-import { app, expireHolds, insertMovie, insertShow, loginAs, resetDb, seatStates } from './helpers.js';
+import { app, expireHolds, insertMovie, insertShow, insertSnack, loginAs, resetDb, seatStates } from './helpers.js';
 
 beforeEach(resetDb);
 afterAll(() => pool.end());
@@ -102,6 +102,39 @@ describe('paying', () => {
     const showId = await insertShow(await insertMovie(), TOMORROW);
     const { agent } = await loginAs();
     await agent.post('/api/bookings').send({ showId, seats: ['C4'] }).expect(409);
+  });
+});
+
+describe('snacks', () => {
+  it('adds snacks to the booking, priced by the server', async () => {
+    const showId = await insertShow(await insertMovie(), TOMORROW, 20000);
+    const popcorn = await insertSnack('Popcorn', 25000);
+    const cola = await insertSnack('Cola', 15000);
+    const { agent } = await loginAs();
+    await agent.post(`/api/shows/${showId}/hold`).send({ seats: ['A1', 'A2'] }).expect(200);
+
+    // A client-sent price is ignored: only snackId and quantity are accepted.
+    const res = await agent
+      .post('/api/bookings')
+      .send({ showId, seats: ['A1', 'A2'], snacks: [{ snackId: popcorn, quantity: 2, pricePaise: 1 }, { snackId: cola, quantity: 1 }], snackDelivery: 'interval' })
+      .expect(201);
+
+    expect(res.body.booking).toMatchObject({ amountPaise: 2 * 20000 + 2 * 25000 + 15000, ticketsPaise: 40000, snackDelivery: 'interval' });
+    expect(res.body.booking.snacks).toEqual([
+      { name: 'Cola', icon: '', quantity: 1, unitPricePaise: 15000 },
+      { name: 'Popcorn', icon: '', quantity: 2, unitPricePaise: 25000 },
+    ]);
+  });
+
+  it('rejects an unavailable snack without booking anything', async () => {
+    const showId = await insertShow(await insertMovie(), TOMORROW);
+    const soldOut = await insertSnack('Sold out', 10000, false);
+    const { agent } = await loginAs();
+    await agent.post(`/api/shows/${showId}/hold`).send({ seats: ['A1'] }).expect(200);
+
+    const res = await agent.post('/api/bookings').send({ showId, seats: ['A1'], snacks: [{ snackId: soldOut, quantity: 1 }] }).expect(400);
+    expect(res.body.error.code).toBe('INVALID_SNACK');
+    expect((await seatStates(agent, showId)).A1).toBe('mine'); // the hold is untouched, so the user can retry
   });
 });
 

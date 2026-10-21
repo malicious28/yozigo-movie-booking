@@ -6,9 +6,17 @@ import type { Movie, Rating } from '../../api/types'
 import { Alert, EmptyState, ErrorState, PageLoader, Poster, RatingBadge } from '../../components/ui'
 import { formatDuration } from '../../lib/format'
 
-type MovieForm = { title: string; description: string; posterUrl: string; language: string; durationMin: string; rating: Rating }
-const EMPTY: MovieForm = { title: '', description: '', posterUrl: '', language: '', durationMin: '120', rating: 'UA' }
-const toForm = (m: Movie): MovieForm => ({ ...m, posterUrl: m.posterUrl ?? '', durationMin: String(m.durationMin) })
+type MovieForm = { title: string; description: string; genre: string; posterUrl: string; language: string; durationMin: string; rating: Rating }
+const EMPTY: MovieForm = { title: '', description: '', genre: '', posterUrl: '', language: '', durationMin: '120', rating: 'UA' }
+const toForm = (m: Movie): MovieForm => ({
+  title: m.title,
+  description: m.description,
+  genre: m.genre,
+  posterUrl: m.posterUrl ?? '',
+  language: m.language,
+  durationMin: String(m.durationMin),
+  rating: m.rating,
+})
 
 function MovieEditor({ movie, onDone }: { movie: Movie | null; onDone: () => void }) {
   const qc = useQueryClient()
@@ -42,6 +50,10 @@ function MovieEditor({ movie, onDone }: { movie: Movie | null; onDone: () => voi
           <input required maxLength={200} value={form.title} onChange={set('title')} />
         </label>
         <label className="field">
+          <span>Genre</span>
+          <input maxLength={100} placeholder="e.g. Drama, Thriller" value={form.genre} onChange={set('genre')} />
+        </label>
+        <label className="field">
           <span>Language</span>
           <input required maxLength={50} value={form.language} onChange={set('language')} />
         </label>
@@ -57,11 +69,11 @@ function MovieEditor({ movie, onDone }: { movie: Movie | null; onDone: () => voi
             <option value="A">A</option>
           </select>
         </label>
-        <label className="field">
+        <label className="field span-2">
           <span>Poster URL (optional)</span>
           <input type="url" placeholder="https://…" maxLength={1000} value={form.posterUrl} onChange={set('posterUrl')} />
         </label>
-        <label className="field span-2">
+        <label className="field span-3">
           <span>Description</span>
           <textarea rows={3} maxLength={2000} value={form.description} onChange={set('description')} />
         </label>
@@ -110,12 +122,13 @@ export default function AdminMoviesPage() {
       {movies.length === 0 ? (
         <EmptyState title="No movies yet" />
       ) : (
-        <ul className="admin-movie-list">
+        <ul className="admin-movie-grid">
           {movies.map((m) => (
             <li key={m.id} className="card admin-movie">
               <Poster url={m.posterUrl} title={m.title} size="sm" />
               <div className="admin-movie-body">
                 <strong>{m.title}</strong>
+                <span className="muted small">{m.genre}</span>
                 <p className="meta">
                   <RatingBadge rating={m.rating} />
                   <span>{m.language}</span>

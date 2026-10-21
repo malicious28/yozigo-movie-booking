@@ -3,12 +3,14 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError, errorMessage } from '../api/client'
 import { queries } from '../api/queries'
-import type { Booking, Hold, SeatState } from '../api/types'
+import type { Booking, Hold, SeatState, Show, SnackDelivery } from '../api/types'
 import { Countdown } from '../components/Countdown'
-import { useRemainingMs } from '../hooks/useRemainingMs'
 import { SeatMap } from '../components/SeatMap'
-import { Alert, ErrorState, Modal, PageLoader } from '../components/ui'
-import { formatLongDay, formatMoney, formatTime } from '../lib/format'
+import { SnackMenu, type Cart } from '../components/SnackMenu'
+import { Alert, ErrorState, Modal, PageLoader, Poster } from '../components/ui'
+import { useRemainingMs } from '../hooks/useRemainingMs'
+import { dateKey, formatLongDay, formatMoney, formatTime } from '../lib/format'
+import { heroGlow } from '../lib/hue'
 import { MAX_SEATS, sortSeats } from '../lib/seats'
 
 type Payment = 'closed' | 'choose' | 'failed'
@@ -17,9 +19,11 @@ type Notice = { kind: 'error' | 'warning' | 'info'; text: string } | null
 const seatsFrom = (err: unknown): string[] =>
   err instanceof ApiError && err.code === 'SEATS_UNAVAILABLE' ? ((err.details as { seats?: string[] })?.seats ?? []) : []
 
-// The booking flow for one show:
-//   choose seats -> Continue (server holds them for 5 min) -> Pay -> fake gateway -> booking.
-// The server is the source of truth: the active hold is read from the polled seat map (so it also
+// Checkout for one show, in three steps:
+//   1. Seats  - pick seats; Continue asks the server to hold them for 5 minutes
+//   2. Snacks - optional food & drinks delivered to the seat
+//   3. Pay    - simulated gateway; success turns the hold into a booking
+// The server is the source of truth: the active hold is read from the polled seat map (so it
 // survives a page refresh), and seats taken by others are derived from it on every render.
 export function ShowPage() {
   const showId = Number(useParams().id)
@@ -29,8 +33,13 @@ export function ShowPage() {
 
   const showQuery = useQuery(queries.show(showId))
   const seatsQuery = useQuery(queries.seats(showId))
+  const snacksQuery = useQuery(queries.snacks())
+  const movieId = showQuery.data?.movieId ?? 0
+  const movieQuery = useQuery({ ...queries.movie(movieId), enabled: movieId > 0 })
 
   const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [cart, setCart] = useState<Cart>({})
+  const [delivery, setDelivery] = useState<SnackDelivery>('show_start')
   const [payment, setPayment] = useState<Payment>('closed')
   const [notice, setNotice] = useState<Notice>(null)
 
@@ -85,8 +94,13 @@ export function ShowPage() {
     },
   })
 
+  const snackOrder = Object.entries(cart)
+    .filter(([, q]) => q > 0)
+    .map(([id, quantity]) => ({ snackId: Number(id), quantity }))
+
   const bookMutation = useMutation({
-    mutationFn: (seats: string[]) => api.post<{ booking: Booking }>('/bookings', { showId, seats }),
+    mutationFn: (seats: string[]) =>
+      api.post<{ booking: Booking }>('/bookings', { showId, seats, snacks: snackOrder, snackDelivery: delivery }),
     onSuccess: ({ booking }) => {
       qc.invalidateQueries({ queryKey: ['bookings'] })
       qc.invalidateQueries({ queryKey: ['movies'] })
@@ -94,22 +108,42 @@ export function ShowPage() {
       navigate(`/bookings/${booking.id}`, { state: { justBooked: true } })
     },
     onError: (err) => {
-      // Hold expired or seats lost: start over with a fresh map.
       setPayment('closed')
-      setPicked(new Set())
-      setMyHold(null)
+      // A snack problem leaves the hold intact, so the user can fix the order and retry.
+      if (err instanceof ApiError && err.code === 'INVALID_SNACK') {
+        qc.invalidateQueries({ queryKey: queries.snacks().queryKey })
+        setCart({})
+      } else {
+        setPicked(new Set())
+        setMyHold(null)
+        refreshSeats()
+      }
       setNotice({ kind: 'error', text: errorMessage(err) })
-      refreshSeats()
     },
   })
 
   if (showQuery.isPending || seatsQuery.isPending) return <PageLoader />
-  if (showQuery.error) return <ErrorState error={showQuery.error} onRetry={showQuery.refetch} />
-  if (seatsQuery.error) return <ErrorState error={seatsQuery.error} onRetry={seatsQuery.refetch} />
+  const loadError = showQuery.error ?? seatsQuery.error
+  if (loadError) {
+    return (
+      <div className="container main">
+        <ErrorState error={loadError} />
+      </div>
+    )
+  }
 
-  const show = showQuery.data
+  const show = showQuery.data!
+  const step = hold ? 'snacks' : 'seats'
   const chosen = hold ? hold.seats : sortSeats(selected)
-  const total = chosen.length * show.pricePaise
+  const ticketsTotal = chosen.length * show.pricePaise
+  const snackLines = snackOrder.flatMap((o) => {
+    const snack = snacksQuery.data?.find((s) => s.id === o.snackId)
+    return snack ? [{ ...o, snack }] : []
+  })
+  const snacksTotal = snackLines.reduce((sum, l) => sum + l.snack.pricePaise * l.quantity, 0)
+  const total = ticketsTotal + snacksTotal
+  const freeSeats = Object.values(states).filter((s) => s === 'available').length
+  const sameDayShows = (movieQuery.data?.shows ?? []).filter((s) => dateKey(s.startsAt) === dateKey(show.startsAt))
 
   const toggle = (label: string) => {
     if (!selected.has(label) && selected.size >= MAX_SEATS) {
@@ -122,75 +156,180 @@ export function ShowPage() {
     else next.add(label)
     setPicked(next)
   }
+  const setQty = (snackId: number, quantity: number) => setCart((c) => ({ ...c, [snackId]: Math.max(0, quantity) }))
+  const hasAlerts = Boolean(notice || lost.length || show.started)
 
   return (
     <>
-      <Link to={`/movies/${show.movieId}`} className="back-link">
-        ← {show.movieTitle}
-      </Link>
-      <div className="page-head">
-        <h1>{show.movieTitle}</h1>
-        <p className="muted">
-          {formatLongDay(show.startsAt)} · {formatTime(show.startsAt)} · {formatMoney(show.pricePaise)} per seat
-        </p>
-      </div>
+      <section className="band checkout-head">
+        <div className="band-glow" style={heroGlow(show.movieTitle)} />
+        <div className="container checkout-head-inner">
+          <div>
+            <Link to={`/movies/${show.movieId}`} className="small" style={{ color: 'var(--on-ink-muted)' }}>
+              ← Back to show times
+            </Link>
+            <h1>{show.movieTitle}</h1>
+            <p className="meta">
+              <span>{show.language}</span>
+              <span className="dot">{formatLongDay(show.startsAt)}</span>
+              <span className="dot">{formatTime(show.startsAt)}</span>
+              <span className="dot">Screen 1</span>
+            </p>
+          </div>
+          {sameDayShows.length > 1 && <TimeSwitch shows={sameDayShows} currentId={show.id} locked={!!hold} />}
+        </div>
+      </section>
 
-      <div className="booking-layout">
-        <section className="card seatmap-card" aria-label="Choose seats">
-          {show.started && <Alert kind="info">This show has already started, so it can no longer be booked.</Alert>}
-          <SeatMap states={states} selected={hold ? undefined : selected} onToggle={hold || show.started ? undefined : toggle} />
-          <p className="muted small center">Seat availability updates live.</p>
-        </section>
+      <div className="container main">
+        <ol className="stepper" aria-label="Checkout steps">
+          <li className={step !== 'seats' ? 'done' : undefined} aria-current={step === 'seats' ? 'step' : undefined}>
+            Select seats
+          </li>
+          <li aria-current={step === 'snacks' && payment === 'closed' ? 'step' : undefined}>Add snacks</li>
+          <li aria-current={payment !== 'closed' ? 'step' : undefined}>Pay</li>
+        </ol>
 
-        <aside className="card summary" aria-label="Booking summary">
-          <h2 className="summary-title">Your seats</h2>
-          {notice && <Alert kind={notice.kind}>{notice.text}</Alert>}
-          {lost.length > 0 && <Alert kind="warning">Seat {sortSeats(lost).join(', ')} was just taken by someone else.</Alert>}
-          {chosen.length === 0 ? (
-            <p className="muted">Select up to {MAX_SEATS} seats on the map.</p>
-          ) : (
-            <dl className="summary-list">
-              <dt>Seats</dt>
-              <dd className="seats-text">{chosen.join(', ')}</dd>
-              <dt>
-                {chosen.length} × {formatMoney(show.pricePaise)}
-              </dt>
-              <dd className="total">{formatMoney(total)}</dd>
-            </dl>
-          )}
+        <div className="checkout-layout">
+          <section className="card" aria-label={step === 'seats' ? 'Choose seats' : 'Add snacks'}>
+            {hasAlerts && (
+              <div style={{ marginBottom: 'var(--s4)' }}>
+                {notice && <Alert kind={notice.kind}>{notice.text}</Alert>}
+                {lost.length > 0 && <Alert kind="warning">Seat {sortSeats(lost).join(', ')} was just taken by someone else.</Alert>}
+                {show.started && <Alert kind="info">This show has already started, so it can no longer be booked.</Alert>}
+              </div>
+            )}
 
-          {hold ? (
-            <>
-              <Countdown remainingMs={remaining} />
-              <button className="btn btn-primary btn-block" onClick={() => setPayment('choose')}>
-                Pay {formatMoney(total)}
-              </button>
-              <button className="btn btn-ghost btn-block" disabled={releaseMutation.isPending} onClick={() => releaseMutation.mutate()}>
-                Change seats
-              </button>
-            </>
-          ) : (
-            <button
-              className="btn btn-primary btn-block"
-              disabled={chosen.length === 0 || holdMutation.isPending || show.started}
-              onClick={() => holdMutation.mutate(chosen)}
-            >
-              {holdMutation.isPending ? 'Holding seats…' : 'Continue'}
-            </button>
-          )}
-        </aside>
+            {step === 'seats' ? (
+              <>
+                <div className="panel-head">
+                  <div>
+                    <h2>Select your seats</h2>
+                    <p className="muted small">
+                      {freeSeats} of 80 seats available · up to {MAX_SEATS} per booking · updates live
+                    </p>
+                  </div>
+                </div>
+                <SeatMap
+                  states={states}
+                  selected={selected}
+                  onToggle={show.started ? undefined : toggle}
+                  caption={`${formatMoney(show.pricePaise)} · Standard`}
+                />
+              </>
+            ) : (
+              <>
+                <div className="panel-head">
+                  <div>
+                    <h2>Grab a bite</h2>
+                    <p className="muted small">Optional. Delivered to seat {hold!.seats[0]} so you don't miss a minute.</p>
+                  </div>
+                  {snackOrder.length > 0 && (
+                    <button className="btn-link small" onClick={() => setCart({})}>
+                      Clear snacks
+                    </button>
+                  )}
+                </div>
+                {snacksQuery.error ? (
+                  <ErrorState error={snacksQuery.error} onRetry={snacksQuery.refetch} />
+                ) : snacksQuery.data ? (
+                  <SnackMenu snacks={snacksQuery.data} cart={cart} onChange={setQty} delivery={delivery} onDelivery={setDelivery} />
+                ) : (
+                  <PageLoader />
+                )}
+              </>
+            )}
+          </section>
+
+          <aside className="card summary" aria-label="Booking summary">
+            <div className="summary-movie">
+              <Poster url={show.posterUrl} title={show.movieTitle} size="xs" />
+              <div>
+                <h2>{show.movieTitle}</h2>
+                <p className="muted small">
+                  {formatLongDay(show.startsAt)}
+                  <br />
+                  {formatTime(show.startsAt)} · Screen 1
+                </p>
+              </div>
+            </div>
+            <div className="summary-body">
+              <div>
+                <span className="label">Seats</span>
+                {chosen.length === 0 ? (
+                  <p className="muted small" style={{ marginTop: 4 }}>
+                    No seats selected yet
+                  </p>
+                ) : (
+                  <div className="seat-tags" style={{ marginTop: 6 }}>
+                    {chosen.map((l) => (
+                      <span key={l} className="seat-tag">
+                        {l}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <ul className="summary-lines">
+                <li>
+                  <span>
+                    Tickets <span className="sub">({chosen.length} × {formatMoney(show.pricePaise)})</span>
+                  </span>
+                  <span>{formatMoney(ticketsTotal)}</span>
+                </li>
+                {snackLines.map((l) => (
+                  <li key={l.snackId}>
+                    <span>
+                      {l.snack.name} <span className="sub">× {l.quantity}</span>
+                    </span>
+                    <span>{formatMoney(l.snack.pricePaise * l.quantity)}</span>
+                  </li>
+                ))}
+                <li className="sub">
+                  <span>Convenience fee</span>
+                  <span>Free</span>
+                </li>
+              </ul>
+              <div className="summary-total">
+                <span>Total</span>
+                <span>{formatMoney(total)}</span>
+              </div>
+
+              {hold && <Countdown remainingMs={remaining} />}
+
+              {step === 'seats' ? (
+                <button
+                  className="btn btn-primary btn-block btn-lg"
+                  disabled={chosen.length === 0 || holdMutation.isPending || show.started}
+                  onClick={() => holdMutation.mutate(chosen)}
+                >
+                  {holdMutation.isPending ? 'Holding seats…' : chosen.length ? `Continue · ${formatMoney(ticketsTotal)}` : 'Continue'}
+                </button>
+              ) : (
+                <>
+                  <button className="btn btn-primary btn-block btn-lg" onClick={() => setPayment('choose')}>
+                    Pay {formatMoney(total)}
+                  </button>
+                  <button className="btn btn-ghost btn-block" disabled={releaseMutation.isPending} onClick={() => releaseMutation.mutate()}>
+                    ← Change seats
+                  </button>
+                </>
+              )}
+            </div>
+          </aside>
+        </div>
       </div>
 
       {payment !== 'closed' && hold && (
-        <Modal title={payment === 'failed' ? 'Payment failed' : 'Payment'} onClose={() => !bookMutation.isPending && setPayment('closed')}>
+        <Modal title={payment === 'failed' ? 'Payment failed' : 'Complete payment'} onClose={() => !bookMutation.isPending && setPayment('closed')}>
           {payment === 'choose' ? (
-            <>
-              <p className="muted">
-                This is a simulated payment gateway. No money is charged. Choose the outcome to test.
-              </p>
+            <div className="gateway">
+              <span className="gateway-brand">🔒 Demo payment gateway</span>
+              <p className="muted small">This is a simulated gateway. No money is charged. Choose the outcome to test.</p>
               <p className="pay-amount">{formatMoney(total)}</p>
               <p className="small muted center">
                 {show.movieTitle} · {hold.seats.join(', ')}
+                {snackLines.length > 0 && ` · ${snackLines.length} snack item${snackLines.length > 1 ? 's' : ''}`}
               </p>
               <div className="modal-actions">
                 <button className="btn btn-danger-ghost" disabled={bookMutation.isPending} onClick={() => setPayment('failed')}>
@@ -200,9 +339,9 @@ export function ShowPage() {
                   {bookMutation.isPending ? 'Confirming…' : 'Payment success'}
                 </button>
               </div>
-            </>
+            </div>
           ) : (
-            <>
+            <div className="gateway">
               <Alert kind="error">Your payment did not go through and no booking was made.</Alert>
               <p className="muted">Your seats are still held, so you can try again before the timer runs out.</p>
               <Countdown remainingMs={remaining} />
@@ -214,10 +353,34 @@ export function ShowPage() {
                   Try again
                 </button>
               </div>
-            </>
+            </div>
           )}
         </Modal>
       )}
     </>
+  )
+}
+
+// Other show times of the same movie that day. Locked while seats are held, so a hold is never
+// left behind on another show by accident.
+function TimeSwitch({ shows, currentId, locked }: { shows: Show[]; currentId: number; locked: boolean }) {
+  return (
+    <nav className="time-switch" aria-label="Other show times today">
+      {shows.map((s) =>
+        s.id === currentId ? (
+          <span key={s.id} className="current" aria-current="page">
+            {formatTime(s.startsAt)}
+          </span>
+        ) : locked ? (
+          <span key={s.id} className="locked" title="Change seats first to switch show time">
+            {formatTime(s.startsAt)}
+          </span>
+        ) : (
+          <Link key={s.id} to={`/shows/${s.id}`}>
+            {formatTime(s.startsAt)}
+          </Link>
+        ),
+      )}
+    </nav>
   )
 }

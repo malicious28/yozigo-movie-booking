@@ -91,7 +91,19 @@ export async function releaseHold(userId: number, showId: number) {
  * Turns the user's active hold on `seats` into a confirmed booking. Called only after the
  * (simulated) payment succeeded. Every seat must still be held by this user and not expired.
  */
-export async function confirmBooking(userId: number, showId: number, seats: string[]) {
+export interface SnackOrder {
+  snackId: number;
+  quantity: number;
+}
+export type SnackDelivery = 'show_start' | 'interval';
+
+export async function confirmBooking(
+  userId: number,
+  showId: number,
+  seats: string[],
+  snacks: SnackOrder[] = [],
+  snackDelivery: SnackDelivery = 'show_start',
+) {
   const bookingId = await withTransaction(async (client) => {
     const show = await getOpenShow(client, showId);
 
@@ -111,12 +123,31 @@ export async function confirmBooking(userId: number, showId: number, seats: stri
       throw new HttpError(409, 'HOLD_EXPIRED', 'Your 5-minute hold on these seats has expired. Please select your seats again.');
     }
 
+    // Snack prices come from the database, never from the client.
+    const prices = new Map<number, number>();
+    if (snacks.length > 0) {
+      const { rows: menu } = await client.query<{ id: number; price_paise: number }>(
+        'SELECT id, price_paise FROM snacks WHERE id = ANY($1) AND available',
+        [snacks.map((s) => s.snackId)],
+      );
+      for (const m of menu) prices.set(m.id, m.price_paise);
+      if (prices.size !== snacks.length) throw new HttpError(400, 'INVALID_SNACK', 'One of the selected snacks is no longer available');
+    }
+    const snacksTotal = snacks.reduce((sum, s) => sum + prices.get(s.snackId)! * s.quantity, 0);
+
     const booking = await client.query<{ id: string }>(
-      'INSERT INTO bookings (user_id, show_id, amount_paise) VALUES ($1, $2, $3) RETURNING id',
-      [userId, showId, show.price_paise * seats.length],
+      'INSERT INTO bookings (user_id, show_id, amount_paise, snack_delivery) VALUES ($1, $2, $3, $4) RETURNING id',
+      [userId, showId, show.price_paise * seats.length + snacksTotal, snacks.length ? snackDelivery : null],
     );
     const id = booking.rows[0].id;
     await client.query('INSERT INTO booking_seats (booking_id, seat_label) SELECT $1, unnest($2::text[])', [id, seats]);
+    if (snacks.length > 0) {
+      await client.query(
+        `INSERT INTO booking_snacks (booking_id, snack_id, quantity, unit_price_paise)
+         SELECT $1, * FROM unnest($2::int[], $3::int[], $4::int[])`,
+        [id, snacks.map((s) => s.snackId), snacks.map((s) => s.quantity), snacks.map((s) => prices.get(s.snackId))],
+      );
+    }
 
     // `booking_id IS NULL` is redundant with the checks above; it is a last line of defence
     // so a seat already pointing at a booking can never be overwritten.
@@ -143,6 +174,12 @@ const BOOKING_SELECT = `
          s.id AS "showId", s.starts_at AS "startsAt", s.ends_at AS "endsAt",
          m.id AS "movieId", m.title AS "movieTitle", m.poster_url AS "posterUrl", m.language,
          ARRAY(SELECT seat_label FROM booking_seats bs WHERE bs.booking_id = b.id) AS seats,
+         s.price_paise * (SELECT count(*) FROM booking_seats bs WHERE bs.booking_id = b.id)::int AS "ticketsPaise",
+         b.snack_delivery AS "snackDelivery",
+         COALESCE((SELECT json_agg(json_build_object('name', sn.name, 'icon', sn.icon, 'quantity', bk.quantity,
+                                                     'unitPricePaise', bk.unit_price_paise) ORDER BY sn.name)
+                     FROM booking_snacks bk JOIN snacks sn ON sn.id = bk.snack_id
+                    WHERE bk.booking_id = b.id), '[]') AS snacks,
          s.starts_at > now() AS upcoming,
          (b.status = 'confirmed' AND s.starts_at - make_interval(hours => ${config.cancelCutoffHours}) > now()) AS cancellable
     FROM bookings b

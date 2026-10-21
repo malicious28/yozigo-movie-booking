@@ -5,13 +5,20 @@ import { idParam } from '../../lib/validation.js';
 import { SHOW_COLUMNS } from '../shows/shows.sql.js';
 
 export const MOVIE_COLUMNS = `
-  id, title, description, poster_url AS "posterUrl", language,
+  id, title, description, genre, poster_url AS "posterUrl", language,
   duration_min AS "durationMin", rating`;
 
 export const moviesRouter = Router();
 
 moviesRouter.get('/', async (_req, res) => {
-  const { rows } = await pool.query(`SELECT ${MOVIE_COLUMNS} FROM movies ORDER BY title`);
+  // Movies with upcoming shows first (soonest first), each with its next show time for the listing.
+  const { rows } = await pool.query(
+    `SELECT ${MOVIE_COLUMNS},
+            (SELECT min(s.starts_at) FROM shows s WHERE s.movie_id = movies.id AND s.starts_at > now()) AS "nextShowAt",
+            (SELECT count(*)::int FROM shows s WHERE s.movie_id = movies.id AND s.starts_at > now()) AS "upcomingShows"
+       FROM movies
+      ORDER BY "nextShowAt" NULLS LAST, title`,
+  );
   res.json({ movies: rows });
 });
 

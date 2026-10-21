@@ -17,6 +17,7 @@ import {
 const movieBody = z.object({
   title: z.string().trim().min(1, 'Title is required').max(200),
   description: z.string().trim().max(2000).default(''),
+  genre: z.string().trim().max(100).default(''),
   // An empty field means "no poster"; the frontend shows a placeholder.
   posterUrl: z
     .string()

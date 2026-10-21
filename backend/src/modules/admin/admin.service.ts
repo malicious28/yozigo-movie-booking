@@ -8,6 +8,7 @@ import { MOVIE_COLUMNS } from '../movies/movies.routes.js';
 export interface MovieInput {
   title: string;
   description: string;
+  genre: string;
   posterUrl: string | null;
   language: string;
   durationMin: number;
@@ -37,9 +38,9 @@ async function overlapError(startsAt: Date, endsAt: Date) {
 
 export async function createMovie(input: MovieInput) {
   const { rows } = await pool.query(
-    `INSERT INTO movies (title, description, poster_url, language, duration_min, rating)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${MOVIE_COLUMNS}`,
-    [input.title, input.description, input.posterUrl, input.language, input.durationMin, input.rating],
+    `INSERT INTO movies (title, description, genre, poster_url, language, duration_min, rating)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ${MOVIE_COLUMNS}`,
+    [input.title, input.description, input.genre, input.posterUrl, input.language, input.durationMin, input.rating],
   );
   return rows[0];
 }
@@ -50,9 +51,9 @@ export async function updateMovie(id: number, input: MovieInput) {
   try {
     return await withTransaction(async (client) => {
       const { rows } = await client.query(
-        `UPDATE movies SET title = $2, description = $3, poster_url = $4, language = $5, duration_min = $6, rating = $7
+        `UPDATE movies SET title = $2, description = $3, genre = $4, poster_url = $5, language = $6, duration_min = $7, rating = $8
           WHERE id = $1 RETURNING ${MOVIE_COLUMNS}`,
-        [id, input.title, input.description, input.posterUrl, input.language, input.durationMin, input.rating],
+        [id, input.title, input.description, input.genre, input.posterUrl, input.language, input.durationMin, input.rating],
       );
       if (!rows[0]) throw notFound('Movie');
       await client.query(
@@ -155,7 +156,9 @@ export async function listShowBookings(showId: number) {
   const { rows } = await pool.query<{ seats: string[] }>(
     `SELECT b.id, b.status, b.amount_paise AS "amountPaise", b.created_at AS "createdAt",
             u.name AS "customerName", u.email AS "customerEmail",
-            ARRAY(SELECT seat_label FROM booking_seats bs WHERE bs.booking_id = b.id) AS seats
+            ARRAY(SELECT seat_label FROM booking_seats bs WHERE bs.booking_id = b.id) AS seats,
+            (SELECT string_agg(bk.quantity || ' × ' || sn.name, ', ' ORDER BY sn.name)
+               FROM booking_snacks bk JOIN snacks sn ON sn.id = bk.snack_id WHERE bk.booking_id = b.id) AS "snacksSummary"
        FROM bookings b JOIN users u ON u.id = b.user_id
       WHERE b.show_id = $1
       ORDER BY b.created_at`,

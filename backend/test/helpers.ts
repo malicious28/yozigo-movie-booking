@@ -7,7 +7,7 @@ import { ROWS, SEATS_PER_ROW } from '../src/lib/seats.js';
 export const app = createApp();
 
 export async function resetDb() {
-  await pool.query('TRUNCATE users, movies, shows, bookings, booking_seats, show_seats RESTART IDENTITY CASCADE');
+  await pool.query('TRUNCATE users, movies, shows, bookings, booking_seats, show_seats, snacks, booking_snacks RESTART IDENTITY CASCADE');
 }
 
 let userCount = 0;
@@ -66,4 +66,12 @@ export async function expireHolds(showId: number) {
 export async function seatStates(agent: ReturnType<typeof request.agent>, showId: number) {
   const res = await agent.get(`/api/shows/${showId}/seats`).expect(200);
   return Object.fromEntries(res.body.seats.map((s: { label: string; state: string }) => [s.label, s.state]));
+}
+
+export async function insertSnack(name: string, pricePaise: number, available = true) {
+  const { rows } = await pool.query<{ id: number }>(
+    `INSERT INTO snacks (name, category, price_paise, available) VALUES ($1, 'snacks', $2, $3) RETURNING id`,
+    [name, pricePaise, available],
+  );
+  return rows[0].id;
 }

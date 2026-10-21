@@ -9,6 +9,7 @@ import { authRouter } from './modules/auth/auth.routes.js';
 import { bookingsRouter } from './modules/bookings/bookings.routes.js';
 import { moviesRouter } from './modules/movies/movies.routes.js';
 import { showsRouter } from './modules/shows/shows.routes.js';
+import { snacksRouter } from './modules/snacks/snacks.routes.js';
 
 // No CORS middleware: the frontend reaches the API through the Vite dev proxy (and the same
 // origin in production), so the auth cookie is first-party and cross-origin calls are refused.
@@ -31,6 +32,7 @@ export function createApp() {
   app.use('/api/auth', authRouter);
   app.use('/api/movies', moviesRouter);
   app.use('/api/shows', showsRouter);
+  app.use('/api/snacks', snacksRouter);
   app.use('/api/bookings', bookingsRouter);
   app.use('/api/admin', adminRouter);
 

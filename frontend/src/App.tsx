@@ -1,5 +1,5 @@
 import { lazy } from 'react'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes, useParams } from 'react-router-dom'
 import { RequireAdmin, RequireAuth } from './auth/guards'
 import { Layout } from './components/Layout'
 import { EmptyState } from './components/ui'
@@ -16,6 +16,11 @@ const AdminShowsPage = lazy(() => import('./pages/admin/AdminShowsPage'))
 const AdminMoviesPage = lazy(() => import('./pages/admin/AdminMoviesPage'))
 const AdminShowPage = lazy(() => import('./pages/admin/AdminShowPage'))
 
+// Keyed by show ID so switching show time starts a fresh checkout (no seats/snacks carried over).
+function ShowRoute() {
+  return <ShowPage key={useParams().id} />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -25,7 +30,7 @@ export default function App() {
           <Route path="movies/:id" element={<MoviePage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="signup" element={<SignupPage />} />
-          <Route path="shows/:id" element={<RequireAuth><ShowPage /></RequireAuth>} />
+          <Route path="shows/:id" element={<RequireAuth><ShowRoute /></RequireAuth>} />
           <Route path="bookings" element={<RequireAuth><MyBookingsPage /></RequireAuth>} />
           <Route path="bookings/:id" element={<RequireAuth><BookingPage /></RequireAuth>} />
           <Route path="admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
@@ -33,7 +38,7 @@ export default function App() {
             <Route path="movies" element={<AdminMoviesPage />} />
             <Route path="shows/:id" element={<AdminShowPage />} />
           </Route>
-          <Route path="*" element={<EmptyState title="Page not found" />} />
+          <Route path="*" element={<div className="container main"><EmptyState title="Page not found" /></div>} />
         </Route>
       </Routes>
     </BrowserRouter>

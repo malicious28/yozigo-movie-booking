@@ -33,21 +33,21 @@ export default function AdminShowPage() {
       <Link to="/admin" className="back-link">
         ← All shows
       </Link>
-      <h2>
+      <h2 style={{ marginBottom: 'var(--s4)' }}>
         {show.data.movieTitle} · {formatLongDay(show.data.startsAt)}, {formatTime(show.data.startsAt)}
       </h2>
-      <div className="stats">
-        <div className="stat card">
+      <div className="kpis" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+        <div className="card kpi">
           <span className="label">Seats booked</span>
           <strong>
             {booked} / {total}
           </strong>
         </div>
-        <div className="stat card">
+        <div className="card kpi">
           <span className="label">Full</span>
           <strong>{total ? Math.round((booked / total) * 100) : 0}%</strong>
         </div>
-        <div className="stat card">
+        <div className="card kpi">
           <span className="label">Collected</span>
           <strong>{formatMoney(revenue)}</strong>
         </div>
@@ -69,6 +69,8 @@ export default function AdminShowPage() {
                     <th>Booking ID</th>
                     <th>Customer</th>
                     <th>Seats</th>
+                    <th>Snacks</th>
+                    <th>Amount</th>
                     <th>Booked at</th>
                     <th>Status</th>
                   </tr>
@@ -85,6 +87,8 @@ export default function AdminShowPage() {
                         <span className="small muted">{b.customerEmail}</span>
                       </td>
                       <td>{b.seats.join(', ')}</td>
+                      <td className="small">{b.snacksSummary ?? <span className="muted">-</span>}</td>
+                      <td>{formatMoney(b.amountPaise)}</td>
                       <td>{formatDateTime(b.createdAt)}</td>
                       <td>
                         <StatusBadge status={b.status} />

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { errorMessage } from '../api/client'
 import type { BookingStatus, Rating } from '../api/types'
+import { posterBackground } from '../lib/hue'
 
 export function PageLoader() {
   return (
@@ -31,6 +32,10 @@ export function Alert({ kind, children }: { kind: 'error' | 'success' | 'info' |
   )
 }
 
+export function VegMark({ veg }: { veg: boolean }) {
+  return <span className={`veg-mark${veg ? '' : ' nonveg'}`} role="img" aria-label={veg ? 'Vegetarian' : 'Non-vegetarian'} />
+}
+
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="empty">
@@ -53,18 +58,15 @@ export function StatusBadge({ status, upcoming }: { status: BookingStatus; upcom
   return upcoming === false ? <span className="badge badge-muted">Completed</span> : <span className="badge badge-success">Confirmed</span>
 }
 
-// A stable hue per title, so placeholders look distinct but consistent across pages.
-const hueOf = (title: string) => [...title].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7)
-
 // Shows the poster, falling back to a typographic placeholder if there is none or it fails to load.
 // referrerPolicy keeps our URLs out of third-party image hosts' logs.
-export function Poster({ url, title, size = 'md' }: { url: string | null; title: string; size?: 'sm' | 'md' | 'lg' }) {
+export function Poster({ url, title, size = 'md' }: { url: string | null; title: string; size?: 'xs' | 'sm' | 'md' | 'lg' }) {
   const [failed, setFailed] = useState(false)
   if (!url || failed) {
     return (
       <div
         className={`poster poster-${size} poster-placeholder`}
-        style={{ background: `linear-gradient(160deg, hsl(${hueOf(title)} 45% 34%), hsl(${hueOf(title)} 50% 14%))` }}
+        style={posterBackground(title)}
         aria-hidden
       >
         <span>{title}</span>

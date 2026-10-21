@@ -16,10 +16,34 @@ export interface Movie {
   id: number
   title: string
   description: string
+  genre: string
   posterUrl: string | null
   language: string
   durationMin: number
   rating: Rating
+  // Only in the movie list.
+  nextShowAt?: string | null
+  upcomingShows?: number
+}
+
+export type SnackCategory = 'combos' | 'popcorn' | 'snacks' | 'beverages'
+export type SnackDelivery = 'show_start' | 'interval'
+
+export interface Snack {
+  id: number
+  name: string
+  description: string
+  category: SnackCategory
+  pricePaise: number
+  isVeg: boolean
+  icon: string
+}
+
+export interface BookedSnack {
+  name: string
+  icon: string
+  quantity: number
+  unitPricePaise: number
 }
 
 export interface Show {
@@ -62,6 +86,9 @@ export interface Booking {
   posterUrl: string | null
   language: string
   seats: string[]
+  ticketsPaise: number
+  snacks: BookedSnack[]
+  snackDelivery: SnackDelivery | null
   upcoming: boolean
   cancellable: boolean
 }
@@ -88,4 +115,5 @@ export interface AdminBooking {
   customerName: string
   customerEmail: string
   seats: string[]
+  snacksSummary: string | null
 }

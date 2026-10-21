@@ -5,7 +5,16 @@ import { idParam, seatList } from '../../lib/validation.js';
 import { currentUser, requireAuth } from '../../middleware/auth.js';
 import { cancelBooking, confirmBooking, getBooking, listBookings } from './bookings.service.js';
 
-const createBody = z.object({ showId: idParam, seats: seatList });
+const createBody = z.object({
+  showId: idParam,
+  seats: seatList,
+  snacks: z
+    .array(z.object({ snackId: idParam, quantity: z.number().int().min(1).max(10, 'At most 10 of each snack') }))
+    .max(20)
+    .refine((list) => new Set(list.map((s) => s.snackId)).size === list.length, 'Each snack must appear once')
+    .default([]),
+  snackDelivery: z.enum(['show_start', 'interval']).default('show_start'),
+});
 // A malformed ID can't belong to the user, so it is reported the same way as someone else's ID.
 const bookingId = (raw: string) => {
   const parsed = z.string().uuid().safeParse(raw);
@@ -19,7 +28,7 @@ bookingsRouter.use(requireAuth);
 // Confirms a held set of seats. The client calls this only when the simulated payment succeeds.
 bookingsRouter.post('/', async (req, res) => {
   const body = createBody.parse(req.body);
-  const booking = await confirmBooking(currentUser(req).id, body.showId, body.seats);
+  const booking = await confirmBooking(currentUser(req).id, body.showId, body.seats, body.snacks, body.snackDelivery);
   res.status(201).json({ booking });
 });
 
