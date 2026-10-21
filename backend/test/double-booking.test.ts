@@ -35,6 +35,36 @@ describe('double booking', () => {
     expect(rows).toHaveLength(2);
   });
 
+  it('still lets only one user win when both requests are forced to overlap', async () => {
+    // Promise.all alone does not guarantee the two transactions overlap. Here a third connection
+    // locks the seat first, so both requests queue up behind it; once Postgres reports both waiting,
+    // the lock is released and they proceed against each other.
+    const showId = await insertShow(await insertMovie(), 24 * 60);
+    const alice = await loginAs();
+    const bob = await loginAs();
+
+    const blocker = await pool.connect();
+    await blocker.query('BEGIN');
+    await blocker.query(`SELECT 1 FROM show_seats WHERE show_id = $1 AND seat_label = 'D6' FOR UPDATE`, [showId]);
+
+    const race = Promise.all([
+      alice.agent.post(`/api/shows/${showId}/hold`).send({ seats: ['D6'] }).then((r) => r),
+      bob.agent.post(`/api/shows/${showId}/hold`).send({ seats: ['D6'] }).then((r) => r),
+    ]);
+    for (let i = 0; i < 100; i++) {
+      const { rows } = await pool.query(
+        `SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`,
+      );
+      if (rows[0].n >= 2) break;
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    await blocker.query('COMMIT');
+    blocker.release();
+
+    const statuses = (await race).map((r) => r.status).sort();
+    expect(statuses).toEqual([200, 409]);
+  });
+
   it('produces exactly one booking when 20 users race for the same seat, end to end', async () => {
     const showId = await insertShow(await insertMovie(), 24 * 60);
     const users = await Promise.all(Array.from({ length: 20 }, () => loginAs()));

@@ -23,6 +23,8 @@ const movieBody = z.object({
     .trim()
     .url('Poster must be a valid URL')
     .max(1000)
+    // .url() also accepts schemes like javascript: or data:, which must never reach an <img src>.
+    .refine((v) => /^https?:\/\//i.test(v), 'Poster URL must start with http:// or https://')
     .or(z.literal(''))
     .nullish()
     .transform((v) => v || null),

@@ -33,6 +33,11 @@ describe('movies', () => {
     await agent.get(`/api/movies/${created.id}`).expect(404);
   });
 
+  it('only accepts http(s) poster URLs', async () => {
+    const { agent } = await loginAs('admin');
+    await agent.post('/api/admin/movies').send({ ...movie, posterUrl: 'javascript:alert(1)' }).expect(400);
+  });
+
   it('refuses to delete a movie whose shows have bookings', async () => {
     const { agent } = await loginAs('admin');
     const movieId = await insertMovie();
