@@ -10,6 +10,8 @@ A movie ticket booking app for a single-screen cinema. Customers browse shows, p
 | Auth     | Email + password (bcrypt), JWT in an httpOnly cookie |
 | Tests    | Vitest + Supertest against a real Postgres (38 tests) |
 
+A one-file summary of everything below (setup, accounts, flows, decisions, database design) is in [docs/Yozigo-Submission-Ashika-Mishra.pdf](docs/Yozigo-Submission-Ashika-Mishra.pdf).
+
 ---
 
 ## Run it locally
@@ -27,7 +29,7 @@ cd backend
 cp .env.example .env
 npm install
 npm run migrate
-npm run seed          # demo users, movies and shows for the next 3 days
+npm run seed          # demo users, movies, snacks and shows for the next 5 days
 npm run dev
 
 # 3. Frontend: http://localhost:5173  (new terminal)
@@ -56,7 +58,7 @@ cd backend && npm test
 
 The tests create and migrate their own database (`movie_booking_test`), so they never touch your dev data.
 
-> Re-running `npm run seed` is safe. It tops up shows for the next 3 days, so the demo always has bookable shows.
+> Re-running `npm run seed` is safe. It tops up shows for the next 5 days, so the demo always has bookable shows.
 
 ## Test accounts (from the seed script)
 

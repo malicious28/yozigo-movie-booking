@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Movie Ticket Booking App - Submission</title>
+<style>
+  @page { size: A4; margin: 18mm 17mm 18mm 17mm; }
+  :root { --text: #1d1d22; --muted: #5f5f6b; --line: #e3e3e8; --soft: #f5f5f7; --accent: #2f5fa7; }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { margin: 0; color: var(--text); font: 10.2pt/1.55 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif; }
+  h1 { font-size: 21pt; font-weight: 650; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 13pt; font-weight: 650; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 10.6pt; font-weight: 650; margin: 16px 0 6px; }
+  p { margin: 0 0 8px; }
+  section { margin-bottom: 22px; }
+  .page-break { break-before: page; }
+  .muted { color: var(--muted); }
+  .small { font-size: 9pt; }
+  a { color: var(--accent); text-decoration: none; }
+  code, pre { font-family: Consolas, 'Cascadia Mono', ui-monospace, monospace; font-size: 8.8pt; }
+  code { background: var(--soft); padding: 1px 4px; border-radius: 3px; }
+  pre { background: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; margin: 6px 0 10px; white-space: pre-wrap; line-height: 1.5; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 9.4pt; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; color: var(--muted); font-size: 8.6pt; background: var(--soft); }
+  tr { break-inside: avoid; }
+  ul, ol { margin: 4px 0 10px; padding-left: 18px; }
+  li { margin-bottom: 4px; }
+  .cover { padding: 30mm 0 0; }
+  .cover .sub { font-size: 11.5pt; color: var(--muted); margin-bottom: 26px; }
+  .meta { width: auto; font-size: 10pt; }
+  .meta td { border: none; padding: 4px 18px 4px 0; }
+  .meta td:first-child { color: var(--muted); white-space: nowrap; }
+  .contents { margin-top: 28px; font-size: 10pt; }
+  .contents ol { padding-left: 20px; }
+  .contents li { margin-bottom: 3px; }
+  .note { border-left: 3px solid var(--line); padding: 4px 0 4px 12px; color: var(--muted); margin: 8px 0 12px; }
+  .ok { color: #2d7a4f; font-weight: 600; }
+  .diagram { border: 1px solid var(--line); border-radius: 6px; padding: 10px; margin: 6px 0 12px; break-inside: avoid; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .email { border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
+  .email p { margin-bottom: 9px; }
+</style>
+</head>
+<body>
+
+<!-- ============ Cover ============ -->
+<section class="cover">
+  <h1>Movie Ticket Booking App</h1>
+  <p class="sub">Yozigo Full-Stack Intern Task: submission document</p>
+  <table class="meta">
+    <tr><td>Candidate</td><td>Ashika Mishra</td></tr>
+    <tr><td>Email</td><td>ashikamishra63@gmail.com</td></tr>
+    <tr><td>Date</td><td>22 October 2026</td></tr>
+    <tr><td>GitHub</td><td><a href="https://github.com/malicious28/yozigo-movie-booking">github.com/malicious28/yozigo-movie-booking</a></td></tr>
+    <tr><td>Screen recording</td><td>[link to be added]</td></tr>
+    <tr><td>Live link</td><td>[optional, to be added if deployed]</td></tr>
+    <tr><td>Stack</td><td>React + TypeScript, Node.js + Express + TypeScript, PostgreSQL</td></tr>
+  </table>
+
+  <div class="contents">
+    <strong>Contents</strong>
+    <ol>
+      <li>Summary</li>
+      <li>How to run it locally</li>
+      <li>Test accounts</li>
+      <li>Flows completed</li>
+      <li>Main decisions</li>
+      <li>How double booking is prevented</li>
+      <li>Database design</li>
+      <li>API overview</li>
+      <li>Tests</li>
+      <li>Assumptions and known limitations</li>
+      <li>Additions beyond the brief</li>
+      <li>Reply email</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ 1. Summary ============ -->
+<section class="page-break">
+  <h2>1. Summary</h2>
+  <p>
+    This is a booking website for a cinema with one screen of 80 seats (rows A to H, seats 1 to 10).
+    Customers can sign up, browse movies and shows, pick up to six seats, hold them for five minutes,
+    pay through a simulated payment step, and see or cancel their bookings. Cinema staff can add and edit movies,
+    schedule shows and see how each show is selling.
+  </p>
+  <p>
+    The main rule, that a seat can never be sold twice, is enforced by the backend and the database,
+    not by the website. Automated tests send many booking requests for the same seat at the same moment
+    and check that exactly one succeeds.
+  </p>
+  <p>
+    All ten flows in the brief work, including the three bonus flows. The sections below explain how to run the project,
+    the decisions behind it and the database design.
+  </p>
+</section>
+
+<!-- ============ 2. Running ============ -->
+<section>
+  <h2>2. How to run it locally</h2>
+  <p>Requirements: Node.js 20 or newer, and Docker (used for the PostgreSQL database).</p>
+
+  <h3>Option A: development mode</h3>
+<pre># 1. Start the database (PostgreSQL in Docker, on port 5434)
+docker compose up -d db
+
+# 2. Backend, on http://localhost:4000
+cd backend
+cp .env.example .env
+npm install
+npm run migrate
+npm run seed        # demo accounts, movies, snacks and shows for the next 5 days
+npm run dev
+
+# 3. Frontend, on http://localhost:5173 (in a second terminal)
+cd frontend
+npm install
+npm run dev</pre>
+  <p>Then open <code>http://localhost:5173</code>. The frontend forwards <code>/api</code> requests to the backend, so both share one address.</p>
+
+  <h3>Option B: everything in Docker</h3>
+<pre>docker compose up --build -d
+docker compose exec app node dist/scripts/seed.js</pre>
+  <p>Then open <code>http://localhost:8080</code>. In this mode the backend also serves the built website.</p>
+
+  <h3>Running the tests</h3>
+<pre>docker compose up -d db
+cd backend
+npm test</pre>
+  <p class="muted">The tests create and use their own database (<code>movie_booking_test</code>), so they do not affect the demo data.
+  The database uses port 5434 so it does not clash with a PostgreSQL that may already be installed. Running the seed again is safe;
+  it only adds shows that are missing.</p>
+</section>
+
+<!-- ============ 3. Accounts ============ -->
+<section>
+  <h2>3. Test accounts</h2>
+  <p>Created by <code>npm run seed</code>. The admin account can only be created this way; normal sign-up always creates a customer.</p>
+  <table>
+    <tr><th>Role</th><th>Email</th><th>Password</th></tr>
+    <tr><td>Admin</td><td>admin@cinema.test</td><td>admin12345</td></tr>
+    <tr><td>Customer</td><td>customer@cinema.test</td><td>customer123</td></tr>
+    <tr><td>Customer (second)</td><td>customer2@cinema.test</td><td>customer123</td></tr>
+  </table>
+  <p class="muted small">The second customer is useful for trying two people booking the same seat, in a normal and a private browser window.</p>
+</section>
+
+<!-- ============ 4. Flows ============ -->
+<section class="page-break">
+  <h2>4. Flows completed</h2>
+  <table>
+    <tr><th style="width:5%">#</th><th style="width:30%">Flow</th><th style="width:11%">Status</th><th>Notes</th></tr>
+    <tr><td>1</td><td>Sign up and log in</td><td class="ok">Done</td><td>Passwords hashed with bcrypt, at least 8 characters. Duplicate email and wrong login show clear messages; the login message does not say which part was wrong. Booking pages and APIs require a login.</td></tr>
+    <tr><td>2</td><td>Browse movies and shows</td><td class="ok">Done</td><td>Movies with poster, language, duration and rating. Shows grouped by date with time, price and seats left. Started shows are hidden.</td></tr>
+    <tr><td>3</td><td>Seat map</td><td class="ok">Done</td><td>8 x 10 map with a screen marker. Available, held and booked seats look different; held and booked seats cannot be clicked. Loaded from the backend.</td></tr>
+    <tr><td>4</td><td>Select and hold seats</td><td class="ok">Done</td><td>1 to 6 seats, selected seats and total shown. Hold lasts 5 minutes with a countdown. If a seat was taken meanwhile, the message names the seat and the map refreshes.</td></tr>
+    <tr><td>5</td><td>Pay and confirm</td><td class="ok">Done</td><td>Simulated payment with "Payment success" and "Payment failure". Failure keeps the hold so the user can retry. Paying after the hold expires is rejected. Double booking is prevented by the database and covered by tests.</td></tr>
+    <tr><td>6</td><td>My bookings</td><td class="ok">Done</td><td>Upcoming first, then past. Shows booking ID, movie, date, time, seats, amount and status. Other users' bookings are never visible.</td></tr>
+    <tr><td>7</td><td>Admin: movies and shows</td><td class="ok">Done</td><td>Add, edit and delete movies; add and delete shows. Overlapping shows are rejected. Shows with bookings cannot be deleted. Customers cannot use admin pages or APIs.</td></tr>
+    <tr><td>8</td><td>Bonus: cancel a booking</td><td class="ok">Done</td><td>Allowed up to 2 hours before the show. Seats become available again straight away.</td></tr>
+    <tr><td>9</td><td>Bonus: bookings per show</td><td class="ok">Done</td><td>Seats booked out of 80, percentage full, money collected, the list of bookings and the seat map.</td></tr>
+    <tr><td>10</td><td>Bonus: live seat updates</td><td class="ok">Done</td><td>The seat map refreshes every 3 seconds using polling. The reason for polling is given in section 5.</td></tr>
+  </table>
+  <p class="muted small">Nothing in flows 1 to 10 is known to be broken. Smaller limitations are listed in section 10.</p>
+</section>
+
+<!-- ============ 5. Decisions ============ -->
+<section>
+  <h2>5. Main decisions</h2>
+  <ol>
+    <li><strong>Node.js with Express and TypeScript</strong> for the backend: one language across the whole project, and the same data types on both sides.</li>
+    <li><strong>PostgreSQL with plain SQL</strong> instead of an ORM: the important logic here is locking and transactions, and writing the SQL directly keeps that logic visible and easy to check.</li>
+    <li><strong>One database row per seat per show</strong>: each show gets 80 seat rows, which can be locked one by one while a hold or booking is made (section 6).</li>
+    <li><strong>Holds expire on their own</strong>: a hold stores its end time and is ignored after that, so no background job is needed and an expired hold can never block a seat.</li>
+    <li><strong>A booking is created only when payment succeeds</strong>, so a failed payment leaves nothing behind.</li>
+    <li><strong>The database enforces the key rules itself</strong>: shows cannot overlap, booked shows cannot be deleted, and a seat can belong to only one booking.</li>
+    <li><strong>Login uses a JWT stored in an httpOnly cookie</strong>: scripts in the page cannot read it. The user's role is checked against the database on every request.</li>
+    <li><strong>Live updates use polling every 3 seconds</strong> rather than WebSockets: holds expire with time anyway, polling keeps working through server restarts, and an 80-seat map is a very small request.</li>
+    <li><strong>On the frontend, TanStack Query</strong> handles loading, caching and refreshing data, and the active hold is read back from the server, so a page refresh does not lose it.</li>
+  </ol>
+</section>
+
+<!-- ============ 6. Double booking ============ -->
+<section class="page-break">
+  <h2>6. How double booking is prevented</h2>
+  <p>Holding seats and confirming a booking each run inside a single database transaction with three steps:</p>
+  <ol>
+    <li><strong>Lock</strong> the requested seat rows (<code>SELECT ... FOR UPDATE</code>), always in the same order.</li>
+    <li><strong>Check</strong> that every seat is still free (or, when paying, still held by this user and not expired).</li>
+    <li><strong>Update</strong> the seats and, when paying, create the booking.</li>
+  </ol>
+  <p>
+    If two people ask for the same seat at the same moment, the database makes the second request wait until the first has finished.
+    When the second request continues, it sees that the seat is now taken and returns an error naming the seat.
+    Locking the seats in the same order every time stops two requests from waiting on each other forever.
+  </p>
+  <p>
+    As a second safeguard, the final update only changes seats that are still free, and the code checks how many rows actually changed.
+    Each seat row also has a single booking column, so a seat can only ever point to one booking.
+  </p>
+  <p>
+    The tests prove this with real concurrent requests: two users racing for one seat, twenty users racing end to end,
+    and the same payment sent five times at once. One test deliberately forces the two requests to overlap. With the locks removed, that test fails.
+  </p>
+</section>
+
+<!-- ============ 7. Database ============ -->
+<section>
+  <h2>7. Database design</h2>
+  <p>Eight tables. Money is stored in paise as whole numbers (for example, Rs 250 is stored as 25000) to avoid rounding errors. All times are stored with time zones.</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 700 470" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+      <defs>
+        <marker id="many" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10" fill="none" stroke="#8a8a96" stroke-width="1.4"/>
+        </marker>
+      </defs>
+      <g stroke="#8a8a96" stroke-width="1.2" fill="none">
+        <path d="M200 64 H260" marker-end="url(#many)"/>
+        <path d="M350 162 V210" marker-end="url(#many)"/>
+        <path d="M260 146 H230 V222 H200" marker-end="url(#many)"/>
+        <path d="M110 330 V278" marker-end="url(#many)"/>
+        <path d="M590 182 V218" marker-end="url(#many)"/>
+        <path d="M500 262 H470 V96 H440" marker-end="url(#many)"/>
+        <path d="M590 324 V356" marker-end="url(#many)"/>
+        <path d="M500 412 H400 V162" stroke-dasharray="4 3"/>
+      </g>
+      <g font-size="9.5" fill="#5f5f6b">
+        <text x="206" y="58">places</text>
+        <text x="356" y="190">seats</text>
+        <text x="206" y="240">snacks</text>
+        <text x="116" y="308">ordered as</text>
+        <text x="596" y="204">has</text>
+        <text x="476" y="206">booked for</text>
+        <text x="596" y="344">80 seats</text>
+        <text x="408" y="300">current booking</text>
+      </g>
+
+      <!-- tables -->
+      <g font-size="10" fill="#1d1d22">
+        <!-- users -->
+        <rect x="20" y="20" width="180" height="114" rx="5" fill="#fff" stroke="#c9c9d1"/>
+        <rect x="20" y="20" width="180" height="24" rx="5" fill="#eef2f9" stroke="#c9c9d1"/>
+        <text x="30" y="36" font-weight="600">users</text>
+        <text x="30" y="60">id (PK)</text><text x="30" y="77">name</text><text x="30" y="94">email (unique)</text><text x="30" y="111">password_hash</text><text x="30" y="128">role: customer | admin</text>
+
+        <!-- bookings -->
+        <rect x="260" y="20" width="180" height="142" rx="5" fill="#fff" stroke="#c9c9d1"/>
+        <rect x="260" y="20" width="180" height="24" rx="5" fill="#eef2f9" stroke="#c9c9d1"/>
+        <text x="270" y="36" font-weight="600">bookings</text>
+        <text x="270" y="60">id (PK, uuid)</text><text x="270" y="77">user_id (FK)</text><text x="270" y="94">show_id (FK)</text><text x="270" y="111">amount_paise</text><text x="270" y="128">status: confirmed | cancelled</text><text x="270" y="145">snack_delivery, created_at</text>
+
+        <!-- booking_seats -->
+        <rect x="260" y="210" width="180" height="62" rx="5" fill="#fff" stroke="#c9c9d1"/>
+        <rect x="260" y="210" width="180" height="24" rx="5" fill="#eef2f9" stroke="#c9c9d1"/>
+        <text x="270" y="226" font-weight="600">booking_seats</text>
+        <text x="270" y="250">booking_id (FK) + seat_label</text><text x="270" y="265" fill="#5f5f6b">(PK)</text>
+
+        <!-- booking_snacks -->
+        <rect x="20" y="186" width="180" height="92" rx="5" fill="#fff" stroke="#c9c9d1"/>
+        <rect x="20" y="186" width="180" height="24" rx="5" fill="#eef2f9" stroke="#c9c9d1"/>
+        <text x="30" y="202" font-weight="600">booking_snacks</text>
+        <text x="30" y="226">booking_id (FK)</text><text x="30" y="243">snack_id (FK)</text><text x="30" y="260">quantity</text><text x="30" y="274">unit_price_paise</text>
+
+        <!-- snacks -->
+        <rect x="20" y="330" width="180" height="108" rx="5" fill="#fff" stroke="#c9c9d1"/>
+        <rect x="20" y="330" width="180" height="24" rx="5" fill="#eef2f9" stroke="#c9c9d1"/>
+        <text x="30" y="346" font-weight="600">snacks</text>
+        <text x="30" y="370">id (PK)</text><text x="30" y="387">name (unique)</text><text x="30" y="404">category, price_paise</text><text x="30" y="421">is_veg, available</text>
+
+        <!-- movies -->
+        <rect x="500" y="20" width="180" height="162" rx="5" fill="#fff" stroke="#c9c9d1"/>
+        <rect x="500" y="20" width="180" height="24" rx="5" fill="#eef2f9" stroke="#c9c9d1"/>
+        <text x="510" y="36" font-weight="600">movies</text>
+        <text x="510" y="60">id (PK)</text><text x="510" y="77">title</text><text x="510" y="94">genre, language</text><text x="510" y="111">duration_min</text><text x="510" y="128">rating: U | UA | A</text><text x="510" y="145">poster_url</text><text x="510" y="162">description</text>
+
+        <!-- shows -->
+        <rect x="500" y="218" width="180" height="106" rx="5" fill="#fff" stroke="#c9c9d1"/>
+        <rect x="500" y="218" width="180" height="24" rx="5" fill="#eef2f9" stroke="#c9c9d1"/>
+        <text x="510" y="234" font-weight="600">shows</text>
+        <text x="510" y="258">id (PK)</text><text x="510" y="275">movie_id (FK)</text><text x="510" y="292">starts_at, ends_at</text><text x="510" y="309">price_paise</text>
+
+        <!-- show_seats -->
+        <rect x="500" y="356" width="180" height="96" rx="5" fill="#fff" stroke="#c9c9d1"/>
+        <rect x="500" y="356" width="180" height="24" rx="5" fill="#eef2f9" stroke="#c9c9d1"/>
+        <text x="510" y="372" font-weight="600">show_seats</text>
+        <text x="510" y="396">show_id + seat_label (PK)</text><text x="510" y="413">held_by (FK users)</text><text x="510" y="430">hold_expires_at</text><text x="510" y="447">booking_id (FK)</text>
+      </g>
+      <text x="20" y="464" font-size="9" fill="#8a8a96">Arrows point from "one" to "many". The dashed line is the seat's current booking (cleared on cancellation).</text>
+    </svg>
+  </div>
+
+  <table>
+    <tr><th style="width:18%">Table</th><th style="width:44%">Purpose</th><th>Rules kept by the database</th></tr>
+    <tr><td>users</td><td>Customer and admin accounts.</td><td>Email unique and stored in lower case; role is customer or admin.</td></tr>
+    <tr><td>movies</td><td>Title, genre, language, duration, rating, poster.</td><td>Duration above zero; rating is U, UA or A.</td></tr>
+    <tr><td>shows</td><td>A movie at a time and price. End time = start + duration.</td><td>No two shows may overlap in time (exclusion constraint).</td></tr>
+    <tr><td>show_seats</td><td>The 80 seats of each show and their current state: free, held (by whom, until when) or booked.</td><td>One row per seat per show; a seat cannot be held and booked at once.</td></tr>
+    <tr><td>bookings</td><td>A confirmed or cancelled booking.</td><td>A show with bookings, and its movie, cannot be deleted.</td></tr>
+    <tr><td>booking_seats</td><td>The seats in each booking, kept after cancellation.</td><td>Each seat listed once per booking.</td></tr>
+    <tr><td>snacks</td><td>The food and drinks menu.</td><td>Price above zero; fixed categories.</td></tr>
+    <tr><td>booking_snacks</td><td>Snacks ordered with a booking, with the price at the time.</td><td>Quantity from 1 to 10.</td></tr>
+  </table>
+</section>
+
+<!-- ============ 8. API ============ -->
+<section class="page-break">
+  <h2>8. API overview</h2>
+  <p>A REST API under <code>/api</code>. Errors always have the form <code>{ "error": { "code", "message" } }</code>.</p>
+  <table>
+    <tr><th style="width:16%">Method</th><th style="width:46%">Path</th><th>Who can call it</th></tr>
+    <tr><td>POST</td><td>/auth/signup, /auth/login, /auth/logout</td><td>Anyone</td></tr>
+    <tr><td>GET</td><td>/auth/me</td><td>Logged-in user</td></tr>
+    <tr><td>GET</td><td>/movies, /movies/:id, /shows/:id, /snacks</td><td>Anyone</td></tr>
+    <tr><td>GET</td><td>/shows/:id/seats</td><td>Logged-in user</td></tr>
+    <tr><td>POST, DELETE</td><td>/shows/:id/hold</td><td>Logged-in user</td></tr>
+    <tr><td>GET, POST</td><td>/bookings (list; confirm after payment)</td><td>Logged-in user</td></tr>
+    <tr><td>GET</td><td>/bookings/:id</td><td>Owner of the booking only</td></tr>
+    <tr><td>POST</td><td>/bookings/:id/cancel</td><td>Owner of the booking only</td></tr>
+    <tr><td>POST, PUT, DELETE</td><td>/admin/movies, /admin/movies/:id</td><td>Admin only</td></tr>
+    <tr><td>GET, POST, DELETE</td><td>/admin/shows, /admin/shows/:id, /admin/shows/:id/bookings</td><td>Admin only</td></tr>
+  </table>
+  <p class="muted small">Asking for another user's booking returns "not found" rather than "forbidden", so the API does not reveal that the booking exists.</p>
+</section>
+
+<!-- ============ 9. Tests ============ -->
+<section>
+  <h2>9. Tests</h2>
+  <p>38 backend tests (Vitest and Supertest) run against a real PostgreSQL database, because the behaviour being tested (locks, constraints, transactions) only exists in the database.</p>
+  <table>
+    <tr><th style="width:26%">File</th><th>What it covers</th></tr>
+    <tr><td>double-booking.test.ts</td><td>Two users holding the same seat at once; a forced overlap of two requests; twenty users racing end to end; the same payment sent five times; booking a seat someone else owns.</td></tr>
+    <tr><td>auth.test.ts</td><td>Password hashing, duplicate email, short password, same message for wrong email or password, logout, protected APIs rejecting missing or forged logins.</td></tr>
+    <tr><td>bookings.test.ts</td><td>Listing only future shows, holds, the 6-seat limit, replacing a hold, expiry, paying after expiry, snack prices taken from the server, privacy of bookings, ordering of My bookings, the 2-hour cancellation rule.</td></tr>
+    <tr><td>admin.test.ts</td><td>Customers blocked from admin APIs, movie add/edit/delete, show times in Indian time, overlap rules, delete rules, occupancy and revenue.</td></tr>
+  </table>
+</section>
+
+<!-- ============ 10. Assumptions ============ -->
+<section>
+  <h2>10. Assumptions and known limitations</h2>
+  <h3>Assumptions</h3>
+  <ul>
+    <li>The cinema is in India, so show times are entered and displayed in Indian Standard Time, whatever the visitor's computer is set to.</li>
+    <li>Shows that have started cannot be held or booked, as well as not being listed.</li>
+    <li>Choosing different seats and pressing Continue again replaces the user's previous hold for that show.</li>
+    <li>"Seats available" does not count seats currently held by someone else.</li>
+    <li>Cancelled bookings still count as bookings when deciding whether a show can be deleted, so the history stays intact.</li>
+  </ul>
+  <h3>Known limitations</h3>
+  <ul>
+    <li>A user can extend a hold by pressing Continue again before it runs out. A real system would cap the total hold time.</li>
+    <li>There is no rate limiting on login yet. It would be the first thing to add before going live.</li>
+    <li>Movie posters are linked from Wikipedia. If one cannot load, the app shows a generated title card instead.</li>
+  </ul>
+</section>
+
+<!-- ============ 11. Additions ============ -->
+<section class="page-break">
+  <h2>11. Additions beyond the brief</h2>
+  <ul>
+    <li><strong>Snacks delivered to the seat.</strong> Food and drinks can be added during checkout, delivered at the start of the show or at the interval. Prices are always taken from the database.</li>
+    <li><strong>E-ticket with a QR code</strong> of the booking ID, shown after payment.</li>
+    <li><strong>Checkout in three steps</strong> (seats, snacks, pay) with an order summary that stays on screen, and quick switching between show times on the same day.</li>
+    <li><strong>Show times coloured by availability</strong> (available, filling fast, almost full), a seven-day date strip, search, and language and certificate filters.</li>
+    <li><strong>Admin summary</strong>: upcoming shows, seats sold, average occupancy and money collected.</li>
+    <li><strong>Accessibility</strong>: every seat is a real button that works with a keyboard and screen reader, seat states differ by shape as well as colour, and animations and transparency are reduced for users who ask for it.</li>
+    <li><strong>Docker</strong>: <code>docker compose up --build</code> runs the whole app on one address.</li>
+  </ul>
+  <h3>Credits</h3>
+  <p class="muted">Demo movies are real releases. Their posters are linked from each film's English Wikipedia article and remain the copyright of their studios; they are used here only for demonstration. Smooth scrolling uses the open-source Lenis library.</p>
+</section>
+
+<!-- ============ 12. Email ============ -->
+<section>
+  <h2>12. Reply email</h2>
+  <div class="email">
+    <p><strong>Subject:</strong> Full-Stack Intern Task: Movie Ticket Booking App - Ashika Mishra</p>
+    <p>Hello Yozigo Hiring Team,</p>
+    <p>Thank you for the task. Please find my submission below.</p>
+    <p>
+      GitHub: https://github.com/malicious28/yozigo-movie-booking<br>
+      Screen recording: [link]<br>
+      Live link: [link, if available]
+    </p>
+    <p>
+      All ten flows are complete, including the three bonus flows. The README explains how to run the project,
+      lists the test accounts, and covers the main decisions and the database design. I have also attached a PDF
+      with the same information in one place.
+    </p>
+    <p>
+      In short, double booking is prevented in the database: each seat is a row that is locked while a hold or booking
+      is made, so only one of two simultaneous requests can succeed. This is covered by automated tests that send
+      concurrent requests for the same seat.
+    </p>
+    <p>I would be happy to walk through any part of the code.</p>
+    <p>Kind regards,<br>Ashika Mishra</p>
+  </div>
+</section>
+
+</body>
+</html>
